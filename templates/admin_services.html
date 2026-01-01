@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Services - Admin - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="admin-services py-5 bg-light">
+    <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h2><i class="bi bi-tools"></i> Manage Services</h2>
+                <p class="text-muted">Add, edit, or remove services</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServiceModal">
+                    <i class="bi bi-plus-circle"></i> Add New Service
+                </button>
+            </div>
+        </div>
+        
+        <!-- Services Table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Service Name</th>
+                                <th>Category</th>
+                                <th>Duration (mins)</th>
+                                <th>Price (₹)</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="servicesTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Service Modal -->
+<div class="modal fade" id="addServiceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add New Service</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addServiceForm" novalidate>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="serviceName" class="form-label">Service Name *</label>
+                            <input type="text" class="form-control" id="serviceName" required>
+                            <div class="invalid-feedback">Service name is required</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="categoryId" class="form-label">Category *</label>
+                            <select class="form-select" id="categoryId" required>
+                                <option value="">Select category...</option>
+                            </select>
+                            <div class="invalid-feedback">Category is required</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="duration" class="form-label">Duration (minutes) *</label>
+                            <input type="number" class="form-control" id="duration" min="15" step="15" required>
+                            <div class="invalid-feedback">Duration is required</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="price" class="form-label">Price (₹) *</label>
+                            <input type="number" class="form-control" id="price" min="0" step="0.01" required>
+                            <div class="invalid-feedback">Price is required</div>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" rows="3"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveServiceBtn">
+                    <span class="spinner-border spinner-border-sm d-none" id="saveSpinner"></span>
+                    Save Service
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Service Modal -->
+<div class="modal fade" id="editServiceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Service</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editServiceForm" novalidate>
+                    <input type="hidden" id="editServiceId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editServiceName" class="form-label">Service Name *</label>
+                            <input type="text" class="form-control" id="editServiceName" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="editCategoryId" class="form-label">Category *</label>
+                            <select class="form-select" id="editCategoryId" required>
+                                <option value="">Select category...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="editDuration" class="form-label">Duration (minutes) *</label>
+                            <input type="number" class="form-control" id="editDuration" min="15" step="15" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="editPrice" class="form-label">Price (₹) *</label>
+                            <input type="number" class="form-control" id="editPrice" min="0" step="0.01" required>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="editDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="editDescription" rows="3"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="updateServiceBtn">
+                    <span class="spinner-border spinner-border-sm d-none" id="updateSpinner"></span>
+                    Update Service
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allServices = [];
+let allCategories = [];
+let addServiceModal, editServiceModal;
+
+document.addEventListener('DOMContentLoaded', async function() {
+    // Check admin authentication
+    if (window.authManager && !window.authManager.requireRole('admin')) {
+        return;
+    }
+    
+    // Initialize modals
+    addServiceModal = new bootstrap.Modal(document.getElementById('addServiceModal'));
+    editServiceModal = new bootstrap.Modal(document.getElementById('editServiceModal'));
+    
+    await loadCategories();
+    await loadServices();
+    setupEventListeners();
+});
+
+async function loadCategories() {
+    try {
+        const data = await window.apiClient.getCategories();
+        const categoriesArray = Array.isArray(data) ? data : (data.categories || []);
+        if (categoriesArray.length) {
+            allCategories = categoriesArray;
+            
+            // Populate category dropdowns
+            const selects = ['categoryId', 'editCategoryId'];
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                allCategories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.name;
+                    select.appendChild(option);
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        window.Toast.error('Failed to load categories');
+    }
+}
+
+async function loadServices() {
+    try {
+        const data = await window.apiClient.getServices();
+        const servicesArray = Array.isArray(data) ? data : (data.services || []);
+        if (servicesArray.length) {
+            allServices = servicesArray;
+            displayServices();
+        }
+    } catch (error) {
+        console.error('Error loading services:', error);
+        window.Toast.error('Failed to load services');
+    }
+}
+
+function displayServices() {
+    const tbody = document.getElementById('servicesTableBody');
+    
+    if (allServices.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-muted py-4">
+                    No services found. Add your first service!
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = allServices.map(service => `
+        <tr>
+            <td>${service.id}</td>
+            <td><strong>${service.name}</strong></td>
+            <td><span class="badge bg-primary">${getCategoryName(service.category_id)}</span></td>
+            <td>${service.duration_mins ?? service.duration}</td>
+            <td>₹${service.price}</td>
+            <td>${service.description || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-warning me-1" onclick="editService(${service.id})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteService(${service.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getCategoryName(categoryId) {
+    const category = allCategories.find(c => c.id == categoryId);
+    return category ? category.name : 'Unknown';
+}
+
+function setupEventListeners() {
+    document.getElementById('saveServiceBtn').addEventListener('click', saveService);
+    document.getElementById('updateServiceBtn').addEventListener('click', updateService);
+}
+
+async function saveService() {
+    const form = document.getElementById('addServiceForm');
+    
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+    
+    const serviceData = {
+        name: document.getElementById('serviceName').value,
+        category_id: parseInt(document.getElementById('categoryId').value),
+        duration_mins: parseInt(document.getElementById('duration').value),
+        price: parseFloat(document.getElementById('price').value),
+        description: document.getElementById('description').value,
+        service_type: 'in-center'
+    };
+    
+    const btn = document.getElementById('saveServiceBtn');
+    const spinner = document.getElementById('saveSpinner');
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    
+    try {
+        await window.apiClient.createService(serviceData);
+        window.Toast.success('Service added successfully!');
+        addServiceModal.hide();
+        form.reset();
+        form.classList.remove('was-validated');
+        await loadServices();
+    } catch (error) {
+        window.Toast.error(error.message || 'Failed to add service');
+    } finally {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+    }
+}
+
+function editService(serviceId) {
+    const service = allServices.find(s => s.id === serviceId);
+    if (!service) return;
+    
+    document.getElementById('editServiceId').value = service.id;
+    document.getElementById('editServiceName').value = service.name;
+    document.getElementById('editCategoryId').value = service.category_id;
+    document.getElementById('editDuration').value = service.duration_mins ?? service.duration;
+    document.getElementById('editPrice').value = service.price;
+    document.getElementById('editDescription').value = service.description || '';
+    
+    editServiceModal.show();
+}
+
+async function updateService() {
+    const form = document.getElementById('editServiceForm');
+    
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+    
+    const serviceId = document.getElementById('editServiceId').value;
+    const serviceData = {
+        name: document.getElementById('editServiceName').value,
+        category_id: parseInt(document.getElementById('editCategoryId').value),
+        duration_mins: parseInt(document.getElementById('editDuration').value),
+        price: parseFloat(document.getElementById('editPrice').value),
+        description: document.getElementById('editDescription').value,
+        service_type: 'in-center'
+    };
+    
+    const btn = document.getElementById('updateServiceBtn');
+    const spinner = document.getElementById('updateSpinner');
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    
+    try {
+        await window.apiClient.updateService(serviceId, serviceData);
+        window.Toast.success('Service updated successfully!');
+        editServiceModal.hide();
+        await loadServices();
+    } catch (error) {
+        window.Toast.error(error.message || 'Failed to update service');
+    } finally {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+    }
+}
+
+async function deleteService(serviceId) {
+    if (!confirm('Are you sure you want to delete this service?')) {
+        return;
+    }
+    
+    try {
+        await window.apiClient.deleteService(serviceId);
+        window.Toast.success('Service deleted successfully!');
+        await loadServices();
+    } catch (error) {
+        window.Toast.error(error.message || 'Failed to delete service');
+    }
+}
+</script>
+{% endblock %}

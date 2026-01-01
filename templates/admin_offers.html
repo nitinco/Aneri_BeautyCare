@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Offers - Admin - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="admin-offers py-5 bg-light">
+        <div class="container-fluid">
+                <h2 class="mb-4"><i class="bi bi-percent"></i> Manage Offers</h2>
+
+                <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                                <div class="d-flex justify-content-between mb-3">
+                                        <h5 class="mb-0">Active Offers</h5>
+                                        <button class="btn btn-primary" id="createOfferBtn" data-bs-toggle="modal" data-bs-target="#offerModal">Create Offer</button>
+                                </div>
+
+                                <div class="table-responsive">
+                                        <table class="table table-striped">
+                                                <thead>
+                                                        <tr><th>ID</th><th>Title</th><th>Description</th><th>Discount</th><th>Status</th><th>Actions</th></tr>
+                                                </thead>
+                                                <tbody id="offersTableBody"></tbody>
+                                        </table>
+                                </div>
+                        </div>
+                </div>
+        </div>
+</div>
+
+<!-- Offer Modal -->
+<div class="modal fade" id="offerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Offer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="offerForm">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input class="form-control" id="offerTitle" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="offerDescription"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Discount (%)</label>
+                        <input type="number" class="form-control" id="offerDiscount" value="0" />
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="offerActive" checked />
+                        <label class="form-check-label" for="offerActive">Active</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveOfferBtn">Save Offer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>
+document.getElementById('saveOfferBtn').addEventListener('click', async function(){
+    const title = document.getElementById('offerTitle').value.trim();
+    const description = document.getElementById('offerDescription').value.trim();
+    const discount = parseFloat(document.getElementById('offerDiscount').value) || 0;
+    const is_active = document.getElementById('offerActive').checked;
+    if(!title){ Toast.error('Title required'); return; }
+    try{ LoadingOverlay.show('Saving offer...'); await apiClient.createOffer({ title, description, discount_percent: discount, is_active }); Toast.success('Offer created'); var modal = bootstrap.Modal.getInstance(document.getElementById('offerModal')); modal.hide(); loadOffersPage(); }
+    catch(e){ console.error(e); Toast.error('Failed to save offer'); }
+    finally{ LoadingOverlay.hide(); }
+});
+</script>
+{% endblock %}

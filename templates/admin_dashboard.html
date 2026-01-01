@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard py-5 bg-light">
+    <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm bg-gradient-primary text-white">
+                    <div class="card-body p-4">
+                        <h2 class="mb-2">
+                            <i class="bi bi-speedometer2"></i> Admin Dashboard
+                        </h2>
+                        <p class="mb-0">Manage services, customers, products, and appointments</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stats Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Total Services</h6>
+                                <h3 class="mb-0" id="totalServices">0</h3>
+                            </div>
+                            <div class="text-primary" style="font-size: 2.5rem;">
+                                <i class="bi bi-scissors"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Total Customers</h6>
+                                <h3 class="mb-0" id="totalCustomers">0</h3>
+                            </div>
+                            <div class="text-success" style="font-size: 2.5rem;">
+                                <i class="bi bi-people"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Total Products</h6>
+                                <h3 class="mb-0" id="totalProducts">0</h3>
+                            </div>
+                            <div class="text-warning" style="font-size: 2.5rem;">
+                                <i class="bi bi-box-seam"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Today's Appointments</h6>
+                                <h3 class="mb-0" id="todayAppointments">0</h3>
+                            </div>
+                            <div class="text-danger" style="font-size: 2.5rem;">
+                                <i class="bi bi-calendar-check"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_services') }}" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-tools"></i><br>
+                                    <small>Manage Services</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_customers') }}" class="btn btn-outline-success w-100">
+                                    <i class="bi bi-people"></i><br>
+                                    <small>View Customers</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_products') }}" class="btn btn-outline-warning w-100">
+                                    <i class="bi bi-box-seam"></i><br>
+                                    <small>Manage Products</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_brands') }}" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-tags"></i><br>
+                                    <small>Add Brand</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_orders') }}" class="btn btn-outline-info w-100">
+                                    <i class="bi bi-bag-check"></i><br>
+                                    <small>View Orders</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_bills') }}" class="btn btn-outline-danger w-100">
+                                    <i class="bi bi-receipt"></i><br>
+                                    <small>Billing</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_offers') }}" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-percent"></i><br>
+                                    <small>Manage Offers</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_users') }}" class="btn btn-outline-dark w-100">
+                                    <i class="bi bi-people-fill"></i><br>
+                                    <small>View Users</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_staff') }}" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-person-badge"></i><br>
+                                    <small>Add Staff</small>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activity -->
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Recent Appointments</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Service</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="appointmentsTableBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            Loading appointments...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Recent Activities</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="activity-feed" id="activityFeed">
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                                <p class="mt-2 mb-0">No recent activity</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    // Check admin authentication
+    if (window.authManager && !window.authManager.requireRole('admin')) {
+        return;
+    }
+    
+    await loadDashboardData();
+});
+
+async function loadDashboardData() {
+    const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
+    
+    try {
+        // Load services count
+        const servicesData = await window.apiClient.getServices();
+        const servicesArray = Array.isArray(servicesData) ? servicesData : (servicesData.services || []);
+        document.getElementById('totalServices').textContent = servicesArray.length;
+        
+        // Load products count
+        const productsData = await window.apiClient.getProducts();
+        const productsArray = Array.isArray(productsData) ? productsData : (productsData.products || []);
+        document.getElementById('totalProducts').textContent = productsArray.length;
+        
+        // Load customers count from admin API
+        try {
+            const custResp = await window.apiClient.get('/api/customers');
+            let custArray = [];
+            if (Array.isArray(custResp)) custArray = custResp;
+            else if (Array.isArray(custResp.customers)) custArray = custResp.customers;
+            else if (Array.isArray(custResp.data)) custArray = custResp.data;
+            document.getElementById('totalCustomers').textContent = String(custArray.length);
+        } catch (e) {
+            console.warn('Failed to load customers count', e);
+            document.getElementById('totalCustomers').textContent = '0';
+        }
+
+        // Load today's appointments for admin
+        try {
+            const today = new Date().toISOString().slice(0,10);
+            const apptsResp = await window.apiClient.get(`/api/appointments?date=${today}`);
+            const appts = Array.isArray(apptsResp) ? apptsResp : (apptsResp.appointments || apptsResp.data || []);
+            document.getElementById('todayAppointments').textContent = String(appts.length);
+            // populate appointments table
+            const tbody = document.getElementById('appointmentsTableBody');
+            if (!tbody) {
+                // fallback to placeholder
+                loadAppointmentsTable();
+            } else {
+                if (!appts || appts.length === 0) {
+                    loadAppointmentsTable();
+                } else {
+                    tbody.innerHTML = '';
+                    appts.forEach(a => {
+                        const start = a.start_datetime ? new Date(a.start_datetime) : null;
+                        const dateStr = start ? start.toLocaleDateString() : '';
+                        const timeStr = start ? start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${a.customer_name || a.customer_id || ''}</td>
+                            <td>${a.service_name || a.service_id || ''}</td>
+                            <td>${dateStr}</td>
+                            <td>${timeStr}</td>
+                            <td>${a.status || ''}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load appointments', e);
+            document.getElementById('todayAppointments').textContent = '0';
+            loadAppointmentsTable();
+        }
+        
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+    }
+}
+
+function loadAppointmentsTable() {
+    const tbody = document.getElementById('appointmentsTableBody');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+                No appointments found
+            </td>
+        </tr>
+    `;
+}
+</script>
+{% endblock %}

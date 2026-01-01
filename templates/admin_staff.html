@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Staff - Admin - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="admin-staff py-5 bg-light">
+    <div class="container-fluid">
+        <h2 class="mb-4"><i class="bi bi-person-badge"></i> Manage Staff</h2>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <h5 class="mb-0">Staff Members</h5>
+                    <button class="btn btn-primary" onclick="openAddStaffModal()">Add Staff</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Active</th><th>Available</th></tr></thead>
+                        <tbody id="staffTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Staff Modal -->
+<div class="modal fade" id="staffModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staffModalTitle">Add Staff</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="staffForm">
+                    <div class="mb-3"><label class="form-label">Name</label><input id="staffName" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Email</label><input id="staffEmail" type="email" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Password</label><input id="staffPassword" type="password" class="form-control"></div>
+                    <div class="mb-3"><label class="form-label">Phone</label><input id="staffPhone" class="form-control"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="saveStaffBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>
+document.getElementById('saveStaffBtn').addEventListener('click', async function(){
+    try { await saveStaffFromModal(); }
+    catch(e) { console.error(e); }
+});
+
+// Reset modal when hidden
+document.getElementById('staffModal').addEventListener('hidden.bs.modal', function () {
+    window._editingStaffId = null;
+    document.getElementById('staffModalTitle').textContent = 'Add Staff';
+    document.getElementById('staffName').value = '';
+    document.getElementById('staffEmail').value = '';
+    document.getElementById('staffPassword').value = '';
+    document.getElementById('staffPhone').value = '';
+});
+</script>
+{% endblock %}

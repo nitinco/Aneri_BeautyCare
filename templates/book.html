@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Book Appointment - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="booking-container py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h4 class="mb-0">
+                            <i class="bi bi-calendar-check"></i> Book Your Appointment
+                        </h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="bookingForm" novalidate>
+                            <!-- Service Selection -->
+                            <div class="mb-4">
+                                <label for="service_id" class="form-label fw-bold">Select Service</label>
+                                <select class="form-select" id="service_id" name="service_id" required>
+                                    <option value="">Choose a service...</option>
+                                </select>
+                                <div class="invalid-feedback">Please select a service.</div>
+                            </div>
+                            
+                            <!-- Service Details Display -->
+                            <div id="serviceDetails" class="alert alert-info d-none mb-4">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <strong>Duration:</strong> <span id="serviceDuration"></span> mins
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Price:</strong> ₹<span id="servicePrice"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Date & Time -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label for="appointment_date" class="form-label fw-bold">Appointment Date</label>
+                                    <input type="date" class="form-control" id="appointment_date" name="appointment_date" required>
+                                    <div class="invalid-feedback">Please select a date.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="appointment_time" class="form-label fw-bold">Preferred Time</label>
+                                    <input type="time" class="form-control" id="appointment_time" name="appointment_time" required>
+                                    <div class="invalid-feedback">Please select a time.</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Staff Preference (Optional) -->
+                            <div class="mb-4">
+                                <label for="staff_id" class="form-label fw-bold">Preferred Staff (Optional)</label>
+                                <select class="form-select" id="staff_id" name="staff_id">
+                                    <option value="">No preference</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Additional Notes -->
+                            <div class="mb-4">
+                                <label for="notes" class="form-label fw-bold">Additional Notes (Optional)</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                          placeholder="Any special requests or requirements..."></textarea>
+                            </div>
+                            
+                            <!-- Submit Button -->
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg" id="bookBtn">
+                                    <span class="spinner-border spinner-border-sm d-none" id="bookSpinner"></span>
+                                    <span id="bookBtnText">Confirm Booking</span>
+                                </button>
+                                <a href="{{ url_for('main.customer_dashboard') }}" class="btn btn-outline-secondary">
+                                    Cancel
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let services = [];
+
+document.addEventListener('DOMContentLoaded', async function() {
+    // Check authentication
+    const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
+    if (!token) {
+        window.location.href = window.APP_CONFIG.URLS.login;
+        return;
+    }
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('appointment_date').setAttribute('min', today);
+    
+    await loadServices();
+    await loadStaff();
+    setupFormHandlers();
+});
+
+async function loadServices() {
+    try {
+        const response = await fetch('/api/services');
+        const data = await response.json();
+        
+        if (response.ok) {
+            const servicesArray = Array.isArray(data) ? data : (data.services || []);
+            services = servicesArray;
+            const serviceSelect = document.getElementById('service_id');
+            
+            services.forEach(service => {
+                const option = document.createElement('option');
+                option.value = service.id;
+                option.textContent = `${service.name} - ₹${service.price}`;
+                option.dataset.duration = service.duration_mins ?? service.duration;
+                option.dataset.price = service.price;
+                serviceSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading services:', error);
+        showMessage('Failed to load services. Please refresh the page.', 'error');
+    }
+}
+
+async function loadStaff() {
+    const staffSelect = document.getElementById('staff_id');
+    try {
+        const data = await window.apiClient.getAvailableStaff();
+        const staffArray = Array.isArray(data) ? data : (data.staff || []);
+        staffArray.forEach(staff => {
+            const option = document.createElement('option');
+            option.value = staff.id;
+            option.textContent = staff.name ? `${staff.name} (ID ${staff.id})` : `Staff #${staff.id}`;
+            staffSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading staff:', error);
+    }
+}
+
+function setupFormHandlers() {
+    const serviceSelect = document.getElementById('service_id');
+    const bookingForm = document.getElementById('bookingForm');
+    
+    // Service selection change
+    serviceSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const serviceDetails = document.getElementById('serviceDetails');
+        
+        if (this.value) {
+            document.getElementById('serviceDuration').textContent = selectedOption.dataset.duration;
+            document.getElementById('servicePrice').textContent = selectedOption.dataset.price;
+            serviceDetails.classList.remove('d-none');
+        } else {
+            serviceDetails.classList.add('d-none');
+        }
+    });
+    
+    // Form submission
+    bookingForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!bookingForm.checkValidity()) {
+            e.stopPropagation();
+            bookingForm.classList.add('was-validated');
+            return;
+        }
+        
+        await submitBooking();
+    });
+}
+
+async function submitBooking() {
+    const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
+    const bookBtn = document.getElementById('bookBtn');
+    const bookBtnText = document.getElementById('bookBtnText');
+    const bookSpinner = document.getElementById('bookSpinner');
+    
+    // Get form data
+    const formData = {
+        service_id: parseInt(document.getElementById('service_id').value),
+        date: document.getElementById('appointment_date').value,
+        time: document.getElementById('appointment_time').value,
+        notes: document.getElementById('notes').value.trim()
+    };
+    
+    const staffId = document.getElementById('staff_id').value;
+    if (staffId) {
+        formData.staff_id = parseInt(staffId);
+    }
+    
+    // Show loading state
+    bookBtn.disabled = true;
+    bookSpinner.classList.remove('d-none');
+    bookBtnText.textContent = 'Processing...';
+    
+    try {
+        const response = await fetch('/api/appointments', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage('Appointment booked successfully!', 'success');
+            
+            // Redirect to dashboard after 2 seconds
+            setTimeout(() => {
+                window.location.href = window.APP_CONFIG.URLS.customerDashboard;
+            }, 2000);
+        } else {
+            showMessage(data.message || 'Failed to book appointment. Please try again.', 'error');
+            resetButton();
+        }
+    } catch (error) {
+        console.error('Booking error:', error);
+        showMessage('Connection error. Please try again.', 'error');
+        resetButton();
+    }
+    
+    function resetButton() {
+        bookBtn.disabled = false;
+        bookSpinner.classList.add('d-none');
+        bookBtnText.textContent = 'Confirm Booking';
+    }
+}
+
+function showMessage(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const iconClass = type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle';
+    
+    const messageHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            <i class="bi ${iconClass}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.getElementById('apiMessages').innerHTML = messageHTML;
+    window.scrollTo(0, 0);
+}
+</script>
+{% endblock %}

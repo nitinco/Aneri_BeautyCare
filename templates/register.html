@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-100 py-5">
+            <div class="col-lg-6 col-md-8">
+                <div class="card shadow-lg border-0 rounded-4">
+                    <div class="card-body p-5">
+                        <!-- Logo -->
+                        <div class="text-center mb-4">
+                            <i class="bi bi-flower1 text-primary" style="font-size: 3rem;"></i>
+                            <h2 class="mt-3 fw-bold">Create Account</h2>
+                            <p class="text-muted">Join Aneri Beauty Care</p>
+                        </div>
+                        
+                        <!-- Registration Form -->
+                        <form id="registerForm" novalidate>
+                            <div class="row">
+                                <!-- Name -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="name" class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           placeholder="Enter your name" required>
+                                    <div class="invalid-feedback">Name is required.</div>
+                                </div>
+                                
+                                <!-- Email -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="email" class="form-label">Email Address</label>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           placeholder="Enter your email" required>
+                                    <div class="invalid-feedback">Valid email is required.</div>
+                                </div>
+                                
+                                <!-- Phone -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="phone" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" 
+                                           placeholder="Enter phone number" pattern="[0-9]{10}" required>
+                                    <div class="invalid-feedback">10-digit phone number required.</div>
+                                </div>
+                                
+                                <!-- Role -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="role" class="form-label">Register As</label>
+                                    <select class="form-select" id="role" name="role" required>
+                                        <option value="customer" selected>Customer</option>
+                                        <option value="staff">Staff</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Password -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="password" class="form-label">Password</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="password" name="password" 
+                                               placeholder="Create password" minlength="6" required>
+                                        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div class="invalid-feedback">Password must be at least 6 characters.</div>
+                                </div>
+                                
+                                <!-- Confirm Password -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="confirmPassword" class="form-label">Confirm Password</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" 
+                                               placeholder="Re-enter password" required>
+                                        <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div class="invalid-feedback">Passwords must match.</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Terms & Conditions -->
+                            <div class="form-check mb-4">
+                                <input class="form-check-input" type="checkbox" id="terms" required>
+                                <label class="form-check-label" for="terms">
+                                    I agree to the <a href="#" class="text-decoration-none">Terms & Conditions</a>
+                                </label>
+                                <div class="invalid-feedback">You must agree to terms.</div>
+                            </div>
+                            
+                            <!-- Submit Button -->
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-primary btn-lg" id="registerBtn">
+                                    <span class="spinner-border spinner-border-sm d-none" id="registerSpinner"></span>
+                                    <span id="registerBtnText">Create Account</span>
+                                </button>
+                            </div>
+                            
+                            <!-- Login Link -->
+                            <div class="text-center">
+                                <p class="mb-0">Already have an account? 
+                                    <a href="{{ url_for('main.login') }}" class="text-decoration-none fw-bold">Login</a>
+                                </p>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const registerForm = document.getElementById('registerForm');
+    const registerBtn = document.getElementById('registerBtn');
+    const registerBtnText = document.getElementById('registerBtnText');
+    const registerSpinner = document.getElementById('registerSpinner');
+    const passwordField = document.getElementById('password');
+    const confirmPasswordField = document.getElementById('confirmPassword');
+    const togglePassword = document.getElementById('togglePassword');
+    const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+    
+    // Toggle password visibility
+    togglePassword.addEventListener('click', function() {
+        const type = passwordField.type === 'password' ? 'text' : 'password';
+        passwordField.type = type;
+        this.querySelector('i').classList.toggle('bi-eye');
+        this.querySelector('i').classList.toggle('bi-eye-slash');
+    });
+    
+    toggleConfirmPassword.addEventListener('click', function() {
+        const type = confirmPasswordField.type === 'password' ? 'text' : 'password';
+        confirmPasswordField.type = type;
+        this.querySelector('i').classList.toggle('bi-eye');
+        this.querySelector('i').classList.toggle('bi-eye-slash');
+    });
+    
+    // Password match validation
+    confirmPasswordField.addEventListener('input', function() {
+        if (this.value !== passwordField.value) {
+            this.setCustomValidity('Passwords do not match');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+    
+    // Form submission
+    registerForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Validate form
+        if (!registerForm.checkValidity()) {
+            e.stopPropagation();
+            registerForm.classList.add('was-validated');
+            return;
+        }
+        
+        // Check password match
+        if (passwordField.value !== confirmPasswordField.value) {
+            showMessage('Passwords do not match', 'error');
+            return;
+        }
+        
+        // Get form data
+        const formData = {
+            name: document.getElementById('name').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            phone: document.getElementById('phone').value.trim(),
+            password: passwordField.value,
+            role: document.getElementById('role').value
+        };
+        
+        // Show loading state
+        registerBtn.disabled = true;
+        registerSpinner.classList.remove('d-none');
+        registerBtnText.textContent = 'Creating account...';
+        
+        try {
+            // Call register API
+            const response = await fetch('/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Show success message
+                showMessage('Account created successfully! Redirecting to login...', 'success');
+                
+                // Redirect to login after 2 seconds
+                setTimeout(() => {
+                    window.location.href = window.APP_CONFIG.URLS.login;
+                }, 2000);
+            } else {
+                // Show error message
+                showMessage(data.message || 'Registration failed. Please try again.', 'error');
+                resetButton();
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            showMessage('Connection error. Please try again.', 'error');
+            resetButton();
+        }
+    });
+    
+    function resetButton() {
+        registerBtn.disabled = false;
+        registerSpinner.classList.add('d-none');
+        registerBtnText.textContent = 'Create Account';
+    }
+    
+    function showMessage(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const iconClass = type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle';
+        
+        const messageHTML = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                <i class="bi ${iconClass}"></i> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        document.getElementById('apiMessages').innerHTML = messageHTML;
+    }
+});
+</script>
+{% endblock %}

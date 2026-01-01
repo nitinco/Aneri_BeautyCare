@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Products - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="products-page py-5">
+    <div class="container">
+        <h2 class="mb-4">Premium Beauty Products</h2>
+        <p class="text-muted">Shop our collection of premium beauty and skincare products.</p>
+        
+        <div class="row g-4" id="productsGrid">
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadProducts();
+});
+
+async function loadProducts() {
+    const grid = document.getElementById('productsGrid');
+    
+    try {
+        const data = await window.apiClient.getProducts();
+        const productsArray = Array.isArray(data) ? data : (data.products || []);
+        // cache loaded products for addToCart to use
+        window._productsCache = productsArray;
+        
+        if (productsArray && productsArray.length > 0) {
+            grid.innerHTML = productsArray
+                .filter(p => p.is_active !== false)
+                .map(product => `
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">${product.name}</h5>
+                            <p class="text-muted">${product.brand_name || (product.brand_id ? 'Brand #' + product.brand_id : 'Premium')}</p>
+                            <p class="small text-muted mb-1">SKU: ${product.sku || '-'}</p>
+                            ${product.is_active === true ? '<span class="badge bg-success mb-2">Available</span>' : '<span class="badge bg-secondary mb-2">Unavailable</span>'}
+                            <h4 class="text-primary">₹${product.price}</h4>
+                            <button class="btn btn-primary w-100 mt-2" onclick="addToCart(${product.id})">
+                                <i class="bi bi-cart-plus"></i> Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            grid.innerHTML = '<div class="col-12 text-center"><p class="text-muted">No products available</p></div>';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        grid.innerHTML = '<div class="col-12 text-center"><p class="text-danger">Failed to load products</p></div>';
+    }
+}
+
+function addToCart(productId) {
+    // try to find product in cache first
+    const cache = window._productsCache || [];
+    const prod = cache.find(p => Number(p.id) === Number(productId));
+    if (prod) {
+        // ensure numeric price
+        const productObj = {
+            id: Number(prod.id),
+            name: prod.name,
+            price: parseFloat(prod.price) || 0,
+            image: prod.image || null
+        };
+        window.CartManager.addItem(productObj, 1);
+        return;
+    }
+
+    // fallback: fetch products and try again
+    window.apiClient.getProducts().then(data => {
+        const arr = Array.isArray(data) ? data : (data.products || []);
+        const p = arr.find(x => Number(x.id) === Number(productId));
+        if (p) {
+            const productObj = { id: Number(p.id), name: p.name, price: parseFloat(p.price) || 0, image: p.image || null };
+            window.CartManager.addItem(productObj, 1);
+        } else {
+            window.Toast.error('Product not found');
+        }
+    }).catch(err => {
+        console.error('Failed to add to cart', err);
+        window.Toast.error('Failed to add to cart');
+    });
+}
+</script>
+{% endblock %}

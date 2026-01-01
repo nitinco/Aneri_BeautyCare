@@ -1,0 +1,68 @@
+<footer class="footer bg-dark text-white mt-5">
+    <div class="container py-5">
+        <div class="row">
+            <!-- About Section -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <h5 class="mb-3">
+                    <i class="bi bi-flower1 text-primary"></i>
+                    Aneri Beauty Care
+                </h5>
+                <p class="text-muted">
+                    Your trusted destination for premium beauty and wellness services. 
+                    We bring elegance and care together to make you look and feel your best.
+                </p>
+                <div class="social-links">
+                    <a href="#" class="text-white me-3"><i class="bi bi-facebook"></i></a>
+                    <a href="#" class="text-white me-3"><i class="bi bi-instagram"></i></a>
+                    <a href="#" class="text-white me-3"><i class="bi bi-twitter"></i></a>
+                    <a href="#" class="text-white"><i class="bi bi-youtube"></i></a>
+                </div>
+            </div>
+            
+            <!-- Quick Links -->
+            <div class="col-lg-2 col-md-6 mb-4">
+                <h5 class="mb-3">Quick Links</h5>
+                <ul class="list-unstyled">
+                    <li><a href="{{ url_for('main.index') }}" class="text-muted">Home</a></li>
+                    <li><a href="{{ url_for('main.services') }}" class="text-muted">Services</a></li>
+                    <li><a href="#" class="text-muted">About Us</a></li>
+                    <li><a href="#" class="text-muted">Contact</a></li>
+                </ul>
+            </div>
+            
+            <!-- Services -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <h5 class="mb-3">Our Services</h5>
+                <ul class="list-unstyled">
+                    <li><a href="#" class="text-muted">Hair Care</a></li>
+                    <li><a href="#" class="text-muted">Skin Care</a></li>
+                    <li><a href="#" class="text-muted">Makeup</a></li>
+                    <li><a href="#" class="text-muted">Spa & Massage</a></li>
+                </ul>
+            </div>
+            
+            <!-- Contact Info -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <h5 class="mb-3">Contact Us</h5>
+                <ul class="list-unstyled text-muted">
+                    <li><i class="bi bi-geo-alt"></i> shop No. 24, Jagruti Nagar Society opp. jogeshwari Socity</li>
+                    <li><i class="bi bi-telephone"></i> +91 9662161659</li>
+                    <li><i class="bi bi-envelope"></i> info@aneribeauty.com</li>
+                    <li><i class="bi bi-clock"></i> Mon-Sat: 10 AM - 8 PM</li>
+                </ul>
+            </div>
+        </div>
+        
+        <hr class="border-secondary">
+        
+        <div class="row">
+            <div class="col-md-6 text-center text-md-start">
+                <p class="mb-0 text-muted">© {{ current_year }} Aneri Beauty Care. All rights reserved.</p>
+            </div>
+            <div class="col-md-6 text-center text-md-end">
+                <a href="#" class="text-muted me-3">Privacy Policy</a>
+                <a href="#" class="text-muted">Terms of Service</a>
+            </div>
+        </div>
+    </div>
+</footer>

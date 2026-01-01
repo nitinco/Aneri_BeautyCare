@@ -1,0 +1,125 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('main.index') }}">
+            <i class="bi bi-flower1 text-primary"></i>
+            <span class="brand-text">Aneri Beauty Care</span>
+        </a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto" id="navbarLinks">
+                <!-- Guest Navigation -->
+                <li class="nav-item guest-nav">
+                    <a class="nav-link" href="{{ url_for('main.index') }}">
+                        <i class="bi bi-house-door"></i> Home
+                    </a>
+                </li>
+                <li class="nav-item guest-nav">
+                    <a class="nav-link" href="{{ url_for('main.services') }}">
+                        <i class="bi bi-scissors"></i> Services
+                    </a>
+                </li>
+                <li class="nav-item guest-nav">
+                    <a class="nav-link" href="{{ url_for('main.login') }}">
+                        <i class="bi bi-box-arrow-in-right"></i> Login
+                    </a>
+                </li>
+                <li class="nav-item guest-nav">
+                    <a class="nav-link btn btn-primary text-white px-3" href="{{ url_for('main.register') }}">
+                        Sign Up
+                    </a>
+                </li>
+                
+                <!-- Customer Navigation -->
+                <li class="nav-item customer-nav d-none">
+                    <a class="nav-link" href="{{ url_for('main.customer_dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item customer-nav d-none">
+                    <a class="nav-link" href="{{ url_for('main.customer_products') }}">
+                        <i class="bi bi-bag-heart"></i> Products
+                    </a>
+                </li>
+                <li class="nav-item customer-nav d-none">
+                    <a class="nav-link" href="{{ url_for('main.customer_book') }}">
+                        <i class="bi bi-calendar-check"></i> Book Appointment
+                    </a>
+                </li>
+                <li class="nav-item customer-nav d-none">
+                    <a class="nav-link position-relative" href="{{ url_for('main.customer_cart') }}">
+                        <i class="bi bi-cart3"></i> Cart
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cartCount">0</span>
+                    </a>
+                </li>
+                
+                <!-- Admin Navigation -->
+                <li class="nav-item admin-nav d-none">
+                    <a class="nav-link" href="{{ url_for('main.admin_dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item admin-nav d-none">
+                    <a class="nav-link" href="{{ url_for('main.admin_services') }}">
+                        <i class="bi bi-tools"></i> Services
+                    </a>
+                </li>
+                <li class="nav-item admin-nav d-none">
+                    <a class="nav-link" href="{{ url_for('main.admin_customers') }}">
+                        <i class="bi bi-people"></i> Customers
+                    </a>
+                </li>
+                    <li class="nav-item admin-nav d-none">
+                        <a class="nav-link" href="{{ url_for('main.admin_stock') }}">
+                            <i class="bi bi-box-seam"></i> Inventory
+                        </a>
+                    </li>
+                <li class="nav-item admin-nav d-none">
+                    <a class="nav-link" href="{{ url_for('main.admin_appointments') }}">
+                        <i class="bi bi-calendar-event"></i> Appointments
+                    </a>
+                </li>
+                <li class="nav-item dropdown admin-nav d-none">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-grid"></i> More
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('main.admin_products') }}">Products</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.admin_orders') }}">Orders</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.admin_bills') }}">Billing</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.admin_offers') }}">Offers</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.admin_complaints') }}">Complaints</a></li>
+                    </ul>
+                </li>
+                
+                <!-- Staff Navigation -->
+                <li class="nav-item staff-nav d-none">
+                    <a class="nav-link" href="{{ url_for('main.staff_dashboard') }}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item staff-nav d-none">
+                    <a class="nav-link" href="{{ url_for('main.admin_delivery') }}">
+                        <i class="bi bi-truck"></i> Deliveries
+                    </a>
+                </li>
+                
+                <!-- User Profile Dropdown (Authenticated) -->
+                <li class="nav-item dropdown auth-nav d-none">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle"></i> <span id="userName">User</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" id="profileLink"><i class="bi bi-person"></i> Profile</a></li>
+                        <li><a class="dropdown-item" href="#" id="settingsLink"><i class="bi bi-gear"></i> Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" id="logoutBtn"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

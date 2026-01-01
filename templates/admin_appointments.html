@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Appointments - Admin - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="admin-appointments py-5 bg-light">
+    <div class="container-fluid">
+        <h2 class="mb-4"><i class="bi bi-calendar-event"></i> Appointments (Old & All)</h2>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Customer</th>
+                                <th>Service</th>
+                                <th>Staff</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Status</th>
+                                <th>Booked On</th>
+                            </tr>
+                        </thead>
+                        <tbody id="appointmentsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

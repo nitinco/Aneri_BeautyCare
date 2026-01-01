@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Dashboard - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="dashboard-container py-5">
+    <div class="container">
+        <!-- Welcome Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm bg-gradient-primary text-white">
+                    <div class="card-body p-4">
+                        <h2 class="mb-2">Welcome back, <span id="customerName">Customer</span>!</h2>
+                        <p class="mb-0">Manage your bookings, explore services, and shop for premium beauty products.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <i class="bi bi-calendar-check text-primary mb-2" style="font-size: 2.5rem;"></i>
+                        <h3 class="mb-0" id="totalAppointments">0</h3>
+                        <p class="text-muted mb-0">Total Appointments</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <i class="bi bi-bag-check text-success mb-2" style="font-size: 2.5rem;"></i>
+                        <h3 class="mb-0" id="totalOrders">0</h3>
+                        <p class="text-muted mb-0">Total Orders</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <i class="bi bi-wallet2 text-warning mb-2" style="font-size: 2.5rem;"></i>
+                        <h3 class="mb-0">₹<span id="totalSpent">0</span></h3>
+                        <p class="text-muted mb-0">Total Spent</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <i class="bi bi-gift text-danger mb-2" style="font-size: 2.5rem;"></i>
+                        <h3 class="mb-0" id="availableOffers">0</h3>
+                        <p class="text-muted mb-0">Available Offers</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h4 class="mb-3">Quick Actions</h4>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <a href="{{ url_for('main.customer_book') }}" class="btn btn-outline-primary btn-lg w-100">
+                    <i class="bi bi-calendar-plus"></i><br>
+                    <small>Book Appointment</small>
+                </a>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <a href="{{ url_for('main.customer_products') }}" class="btn btn-outline-success btn-lg w-100">
+                    <i class="bi bi-bag-heart"></i><br>
+                    <small>Shop Products</small>
+                </a>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <a href="{{ url_for('main.customer_cart') }}" class="btn btn-outline-warning btn-lg w-100">
+                    <i class="bi bi-cart3"></i><br>
+                    <small>View Cart</small>
+                </a>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <a href="{{ url_for('main.customer_offers') }}" class="btn btn-outline-danger btn-lg w-100">
+                    <i class="bi bi-percent"></i><br>
+                    <small>View Offers</small>
+                </a>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <a href="{{ url_for('main.customer_orders') }}" class="btn btn-outline-info btn-lg w-100">
+                    <i class="bi bi-list-columns-reverse"></i><br>
+                    <small>View Orders</small>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Recent Appointments -->
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0">Recent Appointments</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="appointmentsList">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Profile Summary -->
+            <div class="col-lg-4 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0">Profile</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <div class="avatar-circle bg-primary text-white mx-auto mb-3" style="width: 80px; height: 80px; line-height: 80px; font-size: 2rem; border-radius: 50%;">
+                                <span id="userInitials">U</span>
+                            </div>
+                            <h6 id="profileName">Customer</h6>
+                            <p class="text-muted small" id="profileEmail">email@example.com</p>
+                        </div>
+                        
+                        <div class="profile-details">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Phone:</span>
+                                <span id="profilePhone">-</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Address:</span>
+                                <span id="profileAddress">-</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Area:</span>
+                                <span id="profileArea">-</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Member Since:</span>
+                                <span id="memberSince">-</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2 small text-muted">
+                                <span>Customer ID:</span>
+                                <span id="profileCustomerId">-</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2 small text-muted">
+                                <span>User ID:</span>
+                                <span id="profileUserId">-</span>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <button class="btn btn-outline-primary w-100" id="editProfileBtn">
+                            <i class="bi bi-pencil"></i> Edit Profile
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    // Check authentication
+    const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
+    if (!token) {
+        window.location.href = window.APP_CONFIG.URLS.login;
+        return;
+    }
+    
+    await loadUserData();
+    await loadDashboardData();
+});
+
+async function loadUserData() {
+    const userStr = localStorage.getItem(window.APP_CONFIG.USER_KEY);
+    if (userStr) {
+        const user = JSON.parse(userStr);
+        
+        // Update UI with user data
+        document.getElementById('customerName').textContent = user.name || 'Customer';
+        document.getElementById('profileName').textContent = user.name || 'Customer';
+        document.getElementById('profileEmail').textContent = user.email || '';
+        document.getElementById('profilePhone').textContent = user.phone || '-';
+        
+        // Set initials
+        const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U';
+        document.getElementById('userInitials').textContent = initials;
+        
+        // Member since
+        if (user.created_at) {
+            const date = new Date(user.created_at);
+            document.getElementById('memberSince').textContent = date.toLocaleDateString();
+        }
+
+        // Try to fetch customer profile to get phone/address
+        try {
+            const cust = await window.apiClient.getMyCustomer();
+            if (cust) {
+                if (cust.phone) document.getElementById('profilePhone').textContent = cust.phone;
+                if (cust.address) document.getElementById('profileAddress').textContent = cust.address;
+                if (cust.id) document.getElementById('profileCustomerId').textContent = cust.id;
+                if (cust.user_id) document.getElementById('profileUserId').textContent = cust.user_id;
+                if (cust.area_id) {
+                    try {
+                        const area = await window.apiClient.getArea(cust.area_id);
+                        if (area && area.name) {
+                            const name = area.name || '';
+                            const pincode = area.pincode ? (' - ' + area.pincode) : '';
+                            document.getElementById('profileArea').textContent = name + pincode;
+                        }
+                    } catch (err) {
+                        // ignore area lookup
+                    }
+                }
+            }
+        } catch (e) {
+            // ignore if no customer profile
+        }
+    }
+}
+
+async function loadDashboardData() {
+    const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
+    
+    const appointmentsList = document.getElementById('appointmentsList');
+    try {
+        const data = await window.apiClient.getMyAppointments();
+        const appts = Array.isArray(data) ? data : (data.appointments || []);
+        document.getElementById('totalAppointments').textContent = appts.length.toString();
+        
+        if (appts.length === 0) {
+            appointmentsList.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-calendar-x" style="font-size: 3rem;"></i>
+                    <p class="mt-2">No appointments yet</p>
+                    <a href="{{ url_for('main.customer_book') }}" class="btn btn-primary btn-sm">Book Your First Appointment</a>
+                </div>
+            `;
+        } else {
+            appointmentsList.innerHTML = appts.map(a => {
+                const start = new Date(a.start_datetime);
+                const end = new Date(a.end_datetime);
+                return `
+                    <div class="d-flex justify-content-between align-items-center border rounded p-3 mb-2">
+                        <div>
+                            <div class="fw-bold">Service #${a.id}</div>
+                            <div class="text-muted small">${start.toLocaleString()} - ${end.toLocaleTimeString()}</div>
+                        </div>
+                        <span class="badge ${a.status === 'approved' ? 'bg-success' : a.status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'}">${a.status}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Load orders for this user and update stats
+        try {
+            const ordersResp = await window.apiClient.getMyOrders();
+            const orders = Array.isArray(ordersResp) ? ordersResp : (ordersResp.orders || []);
+            document.getElementById('totalOrders').textContent = (orders.length || 0).toString();
+            const totalSpent = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount || o.total || 0) || 0), 0);
+            document.getElementById('totalSpent').textContent = totalSpent.toFixed(2);
+        } catch (err) {
+            console.error('Failed to load orders for dashboard:', err);
+            document.getElementById('totalOrders').textContent = '0';
+            document.getElementById('totalSpent').textContent = '0';
+        }
+
+        // Poll orders periodically so customer sees status updates (every 10s)
+        if (!window._ordersPollStarted) {
+            window._ordersPollStarted = true;
+            setInterval(async () => {
+                try {
+                    const ordersResp = await window.apiClient.getMyOrders();
+                    const orders = Array.isArray(ordersResp) ? ordersResp : (ordersResp.orders || []);
+                    document.getElementById('totalOrders').textContent = (orders.length || 0).toString();
+                    const totalSpent = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount || o.total || 0) || 0), 0);
+                    document.getElementById('totalSpent').textContent = totalSpent.toFixed(2);
+                } catch (e) {
+                    // ignore poll errors
+                }
+            }, 10000);
+        }
+
+        // load offers and update available offers count
+        try {
+            const offersResp = await window.apiClient.getOffers();
+            const offers = offersResp && (Array.isArray(offersResp) ? offersResp : (offersResp.offers || [])) || [];
+            document.getElementById('availableOffers').textContent = (offers.length || 0).toString();
+        } catch (err) {
+            console.error('Failed to load offers for dashboard:', err);
+            document.getElementById('availableOffers').textContent = '0';
+        }
+    } catch (error) {
+        console.error('Failed to load appointments:', error);
+        appointmentsList.innerHTML = '<div class="text-danger">Failed to load appointments</div>';
+    }
+}
+</script>
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editProfileForm">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" id="editName" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="editEmail" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" id="editPhone" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea id="editAddress" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Area ID</label>
+                        <input type="text" id="editAreaId" class="form-control" placeholder="Area id (numeric)">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Customer ID (readonly)</label>
+                        <input type="text" id="editCustomerId" class="form-control" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">User ID (readonly)</label>
+                        <input type="text" id="editUserId" class="form-control" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Password (leave blank to keep)</label>
+                        <input type="password" id="editPassword" class="form-control">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveProfileBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const editBtn = document.getElementById('editProfileBtn');
+    const editModalEl = document.getElementById('editProfileModal');
+    const editModal = new bootstrap.Modal(editModalEl);
+
+    editBtn && editBtn.addEventListener('click', async function() {
+        // prefill fields from local user
+        const userStr = localStorage.getItem(window.APP_CONFIG.USER_KEY);
+        let user = userStr ? JSON.parse(userStr) : null;
+        if (user) {
+            document.getElementById('editName').value = user.name || '';
+            document.getElementById('editEmail').value = user.email || '';
+        }
+
+        // try to load customer profile to prefill phone/address/area and ids
+        window._currentCustomer = null;
+        try {
+            const cust = await window.apiClient.getMyCustomer();
+            if (cust) {
+                window._currentCustomer = cust;
+                if (cust.phone) document.getElementById('editPhone').value = cust.phone;
+                if (cust.address) document.getElementById('editAddress').value = cust.address;
+                if (cust.area_id) document.getElementById('editAreaId').value = cust.area_id;
+                if (cust.id) document.getElementById('editCustomerId').value = cust.id;
+                if (cust.user_id) document.getElementById('editUserId').value = cust.user_id;
+            }
+        } catch (e) {
+            // ignore if no customer profile
+        }
+
+        editModal.show();
+    });
+
+    document.getElementById('saveProfileBtn').addEventListener('click', async function() {
+        const name = document.getElementById('editName').value.trim();
+        const email = document.getElementById('editEmail').value.trim();
+        const phone = document.getElementById('editPhone').value.trim();
+        const address = document.getElementById('editAddress').value.trim();
+        const area_id_raw = document.getElementById('editAreaId').value.trim();
+        const area_id = area_id_raw ? Number(area_id_raw) : undefined;
+        const password = document.getElementById('editPassword').value;
+
+        try {
+            LoadingOverlay.show('Saving profile...');
+            const profileResp = await window.apiClient.updateProfile({ name, email, password: password || undefined });
+
+            // update customer with richer payload
+            const custPayload = { phone: phone || undefined, address: address || undefined, area_id: area_id };
+            if (window._currentCustomer && window._currentCustomer.id) custPayload.id = window._currentCustomer.id;
+            if (window._currentCustomer && window._currentCustomer.user_id) custPayload.user_id = window._currentCustomer.user_id;
+            await window.apiClient.updateCustomer(custPayload);
+
+            // update local user storage
+            if (profileResp && profileResp.user) {
+                localStorage.setItem(window.APP_CONFIG.USER_KEY, JSON.stringify(profileResp.user));
+                window.authManager.updateNavigationState && window.authManager.updateNavigationState();
+            }
+            LoadingOverlay.hide();
+            // remove focus from save button before hiding modal to avoid aria-hidden focus issues
+            try { document.getElementById('saveProfileBtn').blur(); } catch(e){}
+            editModal.hide();
+            Toast.success('Profile updated');
+            // refresh visible data
+            await loadUserData();
+        } catch (err) {
+            LoadingOverlay.hide();
+            console.error('Failed to save profile', err);
+            Toast.error(err.message || 'Failed to update profile');
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,12 @@
+Flask
+Flask-SQLAlchemy
+PyMySQL
+PyJWT
+Werkzeug
+Flask-JWT-Extended
+Flask-Migrate
+reportlab
+razorpay
+python-dotenv
+PyPDF2
+gunicorn

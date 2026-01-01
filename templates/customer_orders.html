@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}My Orders - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h2 class="mb-4"><i class="bi bi-bag-check"></i> My Orders</h2>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr><th>ID</th><th>Status</th><th>Total</th><th>Created</th><th>Items</th></tr>
+                    </thead>
+                    <tbody id="myOrdersBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
+    if (!token) { window.location.href = window.APP_CONFIG.URLS.login; return; }
+
+    // Load and render orders, return map of orderId->status
+    async function loadOrders() {
+        try {
+            LoadingOverlay.show('Loading orders...');
+            const resp = await window.apiClient.getMyOrders();
+            const orders = Array.isArray(resp) ? resp : (resp.orders || []);
+                let _productMap = null;
+                // ensure product id->name map for item display
+                if (!_productMap) {
+                    try {
+                        const pResp = await window.apiClient.getProducts();
+                        const products = pResp.products || [];
+                        _productMap = {};
+                        products.forEach(p => { _productMap[p.id] = p.name || (`Product ${p.id}`); });
+                    } catch (e) {
+                        _productMap = {};
+                    }
+                }
+            const tbody = document.getElementById('myOrdersBody');
+            tbody.innerHTML = '';
+            if (!orders || orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No orders found</td></tr>';
+            } else {
+                orders.forEach(o => {
+                        const items = (o.items || []).map(i => {
+                            const name = (_productMap && _productMap[i.product_id]) || i.product_name || (`#${i.product_id}`);
+                            return `${name} × ${i.quantity}`;
+                        }).join('<br>');
+                    const created = o.created_at || o.created || '';
+                    tbody.insertAdjacentHTML('beforeend', `
+                        <tr data-order-id="${o.id}">
+                            <td>${o.id}</td>
+                            <td class="order-status">${o.status || ''}</td>
+                            <td>₹${parseFloat(o.total_amount || o.total || 0).toFixed(2)}</td>
+                            <td>${created}</td>
+                            <td>${items}</td>
+                        </tr>
+                    `);
+                });
+            }
+            return (orders || []).reduce((acc, o) => { acc[o.id] = o.status || ''; return acc; }, {});
+        } catch (err) {
+            console.error('Failed to load my orders', err);
+            document.getElementById('myOrdersBody').innerHTML = '<tr><td colspan="5" class="text-danger">Failed to load orders</td></tr>';
+            return {};
+        } finally {
+            LoadingOverlay.hide();
+        }
+    }
+
+    // initial load and polling
+    const prevStatuses = await loadOrders();
+    setInterval(async () => {
+        try {
+            const newStatuses = await loadOrders();
+            for (const id in newStatuses) {
+                if (prevStatuses[id] && prevStatuses[id] !== newStatuses[id]) {
+                    const row = document.querySelector(`tr[data-order-id="${id}"]`);
+                    if (row) {
+                        row.classList.add('table-success');
+                        setTimeout(() => row.classList.remove('table-success'), 3000);
+                    }
+                }
+            }
+            // copy new into prev
+            Object.keys(prevStatuses).forEach(k => delete prevStatuses[k]);
+            Object.assign(prevStatuses, newStatuses);
+        } catch (e) { console.error('Polling orders failed', e); }
+    }, 10000);
+
+});
+</script>
+{% endblock %}
