@@ -15,6 +15,14 @@
                     </div>
                     <div class="card-body p-4">
                         <form id="bookingForm" novalidate>
+                            <!-- Service Location (Salon or Home) -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Service Location</label>
+                                <select id="service_location" class="form-select">
+                                    <option value="in-center">Salon (In-centre)</option>
+                                    <option value="home">Home Service</option>
+                                </select>
+                            </div>
                             <!-- Service Selection -->
                             <div class="mb-4">
                                 <label for="service_id" class="form-label fw-bold">Select Service</label>
@@ -56,6 +64,13 @@
                                 <select class="form-select" id="staff_id" name="staff_id">
                                     <option value="">No preference</option>
                                 </select>
+                            </div>
+
+                            <!-- Address / Pincode for Home Service -->
+                            <div id="homeAddressFields" class="mb-4 d-none">
+                                <label class="form-label fw-bold">Service Address (for Home Service)</label>
+                                <input type="text" id="home_address" class="form-control mb-2" placeholder="Full address">
+                                <input type="text" id="home_pincode" class="form-control" placeholder="Pincode / Area Code">
                             </div>
                             
                             <!-- Additional Notes -->
@@ -100,9 +115,26 @@ document.addEventListener('DOMContentLoaded', async function() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('appointment_date').setAttribute('min', today);
     
+    // read URL params to pre-select service or type
+    const params = new URLSearchParams(window.location.search);
+    const preType = params.get('type');
+    const preService = params.get('book');
+    if (preType && document.getElementById('service_location')) {
+        document.getElementById('service_location').value = preType === 'home' ? 'home' : 'in-center';
+    }
+
     await loadServices();
     await loadStaff();
     setupFormHandlers();
+
+    // if a service id was provided in URL, pre-select it
+    if (preService) {
+        const sel = document.getElementById('service_id');
+        if (sel) {
+            sel.value = preService;
+            sel.dispatchEvent(new Event('change'));
+        }
+    }
 });
 
 async function loadServices() {
@@ -114,14 +146,18 @@ async function loadServices() {
             const servicesArray = Array.isArray(data) ? data : (data.services || []);
             services = servicesArray;
             const serviceSelect = document.getElementById('service_id');
-            
+            // build options grouped by type according to selected service_location
+            const loc = document.getElementById('service_location') ? document.getElementById('service_location').value : 'in-center';
+            serviceSelect.innerHTML = '<option value="">Choose a service...</option>';
             services.forEach(service => {
+                // attach service_type on option so UI can auto-switch
                 const option = document.createElement('option');
                 option.value = service.id;
                 option.textContent = `${service.name} - ₹${service.price}`;
                 option.dataset.duration = service.duration_mins ?? service.duration;
                 option.dataset.price = service.price;
-                serviceSelect.appendChild(option);
+                option.dataset.type = service.service_type || 'in-center';
+                if (!loc || option.dataset.type === loc) serviceSelect.appendChild(option);
             });
         }
     } catch (error) {
@@ -148,6 +184,8 @@ async function loadStaff() {
 
 function setupFormHandlers() {
     const serviceSelect = document.getElementById('service_id');
+    const locSelect = document.getElementById('service_location');
+    const homeFields = document.getElementById('homeAddressFields');
     const bookingForm = document.getElementById('bookingForm');
     
     // Service selection change
@@ -159,9 +197,24 @@ function setupFormHandlers() {
             document.getElementById('serviceDuration').textContent = selectedOption.dataset.duration;
             document.getElementById('servicePrice').textContent = selectedOption.dataset.price;
             serviceDetails.classList.remove('d-none');
+            // auto-set location based on service type if provided
+            if (selectedOption.dataset.type) {
+                locSelect.value = selectedOption.dataset.type;
+                // show/hide address fields
+                if (selectedOption.dataset.type === 'home') {
+                    homeFields.classList.remove('d-none');
+                } else {
+                    homeFields.classList.add('d-none');
+                }
+            }
         } else {
             serviceDetails.classList.add('d-none');
         }
+    });
+
+    // when location changes, reload service options to filter by type
+    locSelect.addEventListener('change', async function(){
+        await loadServices();
     });
     
     // Form submission
@@ -185,16 +238,22 @@ async function submitBooking() {
     const bookSpinner = document.getElementById('bookSpinner');
     
     // Get form data
+    const selectedLocation = document.getElementById('service_location').value;
     const formData = {
         service_id: parseInt(document.getElementById('service_id').value),
         date: document.getElementById('appointment_date').value,
         time: document.getElementById('appointment_time').value,
         notes: document.getElementById('notes').value.trim()
     };
-    
+
     const staffId = document.getElementById('staff_id').value;
     if (staffId) {
         formData.staff_id = parseInt(staffId);
+    }
+    // include address/pincode for home booking
+    if (selectedLocation === 'home') {
+        formData.address = document.getElementById('home_address').value.trim();
+        formData.pincode = document.getElementById('home_pincode').value.trim();
     }
     
     // Show loading state
@@ -203,7 +262,9 @@ async function submitBooking() {
     bookBtnText.textContent = 'Processing...';
     
     try {
-        const response = await fetch('/api/appointments', {
+        // choose endpoint based on location: appointments -> salon, bookings -> home
+        const endpoint = (document.getElementById('service_location').value === 'home') ? '/api/bookings' : '/api/appointments';
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

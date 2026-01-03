@@ -15,6 +15,9 @@
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServiceModal">
                     <i class="bi bi-plus-circle"></i> Add New Service
                 </button>
+                <button class="btn btn-outline-secondary ms-2" id="manageCategoriesBtn">
+                    <i class="bi bi-tags"></i> Manage Categories
+                </button>
             </div>
         </div>
         
@@ -29,6 +32,7 @@
                                 <th>Service Name</th>
                                 <th>Category</th>
                                 <th>Duration (mins)</th>
+                                <th>Type</th>
                                 <th>Price (₹)</th>
                                 <th>Description</th>
                                 <th>Actions</th>
@@ -36,7 +40,7 @@
                         </thead>
                         <tbody id="servicesTableBody">
                             <tr>
-                                <td colspan="7" class="text-center py-4">
+                                <td colspan="8" class="text-center py-4">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
@@ -45,6 +49,39 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Categories Modal -->
+<div class="modal fade" id="manageCategoriesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="bi bi-tags"></i> Manage Categories</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <input class="form-control" id="newCategoryName" placeholder="New category name">
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-primary w-100" id="addCategoryBtn">Add Category</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>ID</th><th>Name</th><th>Description</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="categoriesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -79,6 +116,14 @@
                             <label for="duration" class="form-label">Duration (minutes) *</label>
                             <input type="number" class="form-control" id="duration" min="15" step="15" required>
                             <div class="invalid-feedback">Duration is required</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="serviceType" class="form-label">Service Type *</label>
+                            <select class="form-select" id="serviceType" required>
+                                <option value="in-center">In Center</option>
+                                <option value="home">Home Service</option>
+                            </select>
                         </div>
                         
                         <div class="col-md-6 mb-3">
@@ -132,6 +177,14 @@
                         <div class="col-md-6 mb-3">
                             <label for="editDuration" class="form-label">Duration (minutes) *</label>
                             <input type="number" class="form-control" id="editDuration" min="15" step="15" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="editServiceType" class="form-label">Service Type *</label>
+                            <select class="form-select" id="editServiceType" required>
+                                <option value="in-center">In Center</option>
+                                <option value="home">Home Service</option>
+                            </select>
                         </div>
                         
                         <div class="col-md-6 mb-3">
@@ -224,7 +277,7 @@ function displayServices() {
     if (allServices.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center text-muted py-4">
+                <td colspan="8" class="text-center text-muted py-4">
                     No services found. Add your first service!
                 </td>
             </tr>
@@ -238,6 +291,7 @@ function displayServices() {
             <td><strong>${service.name}</strong></td>
             <td><span class="badge bg-primary">${getCategoryName(service.category_id)}</span></td>
             <td>${service.duration_mins ?? service.duration}</td>
+            <td><span class="text-muted">${service.service_type || 'in-center'}</span></td>
             <td>₹${service.price}</td>
             <td>${service.description || '-'}</td>
             <td>
@@ -260,6 +314,73 @@ function getCategoryName(categoryId) {
 function setupEventListeners() {
     document.getElementById('saveServiceBtn').addEventListener('click', saveService);
     document.getElementById('updateServiceBtn').addEventListener('click', updateService);
+    // categories management
+    document.getElementById('manageCategoriesBtn').addEventListener('click', function(){
+        const m = new bootstrap.Modal(document.getElementById('manageCategoriesModal'));
+        m.show();
+        loadCategoriesTable();
+    });
+    document.getElementById('addCategoryBtn').addEventListener('click', async function(){
+        const name = document.getElementById('newCategoryName').value.trim();
+        if (!name) return window.Toast.error('Name required');
+        try {
+            await window.apiClient.createCategory({ name });
+            window.Toast.success('Category added');
+            document.getElementById('newCategoryName').value = '';
+            await loadCategories();
+            await loadCategoriesTable();
+        } catch (e) { window.Toast.error(e.message || 'Failed to add'); }
+    });
+}
+
+async function loadCategoriesTable() {
+    const tbody = document.getElementById('categoriesTableBody');
+    try {
+        const data = await window.apiClient.getCategories();
+        const cats = Array.isArray(data) ? data : (data.categories || []);
+        if (!cats.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-muted">No categories</td></tr>';
+            return;
+        }
+        tbody.innerHTML = cats.map(c => `
+            <tr data-cat-id="${c.id}">
+                <td>${c.id}</td>
+                <td><input class="form-control form-control-sm cat-name" value="${c.name}"></td>
+                <td><input class="form-control form-control-sm cat-desc" value="${c.description || ''}"></td>
+                <td>
+                    <button class="btn btn-sm btn-success me-1" onclick="saveCategory(${c.id})">Save</button>
+                    <button class="btn btn-sm btn-danger" onclick="removeCategory(${c.id})">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-danger">Failed to load</td></tr>';
+    }
+}
+
+async function saveCategory(catId) {
+    const row = document.querySelector(`tr[data-cat-id="${catId}"]`);
+    if (!row) return;
+    const name = row.querySelector('.cat-name').value.trim();
+    const desc = row.querySelector('.cat-desc').value.trim();
+    if (!name) return window.Toast.error('Name required');
+    try {
+        await window.apiClient.updateCategory(catId, { name, description: desc });
+        window.Toast.success('Category updated');
+        await loadCategories();
+        await loadCategoriesTable();
+    } catch (e) { window.Toast.error(e.message || 'Failed to update'); }
+}
+
+async function removeCategory(catId) {
+    if (!confirm('Delete category #' + catId + '?')) return;
+    try {
+        await window.apiClient.deleteCategory(catId);
+        window.Toast.success('Category deleted');
+        await loadCategories();
+        await loadCategoriesTable();
+        await loadServices();
+    } catch (e) { window.Toast.error(e.message || 'Failed to delete'); }
 }
 
 async function saveService() {
@@ -276,7 +397,7 @@ async function saveService() {
         duration_mins: parseInt(document.getElementById('duration').value),
         price: parseFloat(document.getElementById('price').value),
         description: document.getElementById('description').value,
-        service_type: 'in-center'
+        service_type: document.getElementById('serviceType') ? document.getElementById('serviceType').value : 'in-center'
     };
     
     const btn = document.getElementById('saveServiceBtn');
@@ -309,6 +430,10 @@ function editService(serviceId) {
     document.getElementById('editDuration').value = service.duration_mins ?? service.duration;
     document.getElementById('editPrice').value = service.price;
     document.getElementById('editDescription').value = service.description || '';
+    // set service type
+    if (document.getElementById('editServiceType')) {
+        document.getElementById('editServiceType').value = service.service_type || 'in-center';
+    }
     
     editServiceModal.show();
 }
@@ -328,7 +453,7 @@ async function updateService() {
         duration_mins: parseInt(document.getElementById('editDuration').value),
         price: parseFloat(document.getElementById('editPrice').value),
         description: document.getElementById('editDescription').value,
-        service_type: 'in-center'
+        service_type: document.getElementById('editServiceType') ? document.getElementById('editServiceType').value : 'in-center'
     };
     
     const btn = document.getElementById('updateServiceBtn');

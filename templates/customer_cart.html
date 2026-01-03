@@ -53,6 +53,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     renderCart();
@@ -72,12 +73,53 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             LoadingOverlay.show('Processing order...');
             const order = await window.apiClient.syncCartAndCreateOrder(cart);
+            // create razorpay order on server
+            const rpResp = await window.apiClient.createRazorpayOrder(order.id);
             LoadingOverlay.hide();
-            Toast.success('Order placed successfully');
-            // clear local cart
-            window.CartManager.clearCart();
-            // redirect to dashboard/orders
-            window.location.href = window.APP_CONFIG.URLS.customerDashboard;
+            if (!rpResp || !rpResp.razorpay_order) {
+                Toast.success('Order placed successfully');
+                window.CartManager.clearCart();
+                window.location.href = window.APP_CONFIG.URLS.customerDashboard;
+                return;
+            }
+
+            // load razorpay checkout
+            // compute amount in paise from server-provided order_total to avoid precision issues
+            const orderTotal = (rpResp.order_total !== undefined) ? parseFloat(rpResp.order_total) : null;
+            const amountPaise = orderTotal !== null ? Math.round(orderTotal * 100) : (rpResp.razorpay_order.amount || 0);
+
+            const options = {
+                key: rpResp.key_id,
+                amount: amountPaise,
+                currency: (rpResp.razorpay_order && rpResp.razorpay_order.currency) || 'INR',
+                name: 'Aneri BeautyCare',
+                description: 'Order #' + order.id,
+                order_id: rpResp.razorpay_order.id,
+                handler: async function (response){
+                    try {
+                        LoadingOverlay.show('Verifying payment...');
+                        await window.apiClient.verifyRazorpayPayment({
+                            order_id: order.id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        });
+                        LoadingOverlay.hide();
+                        Toast.success('Payment successful');
+                        window.CartManager.clearCart();
+                        window.location.href = window.APP_CONFIG.URLS.customerDashboard;
+                    } catch (err) {
+                        LoadingOverlay.hide();
+                        console.error(err);
+                        Toast.error('Payment verification failed');
+                    }
+                },
+                modal: {ondismiss: function(){ /* optional: allow user to retry */ }}
+            };
+
+            const r = new Razorpay(options);
+            r.open();
+
         } catch (err) {
             LoadingOverlay.hide();
             console.error(err);

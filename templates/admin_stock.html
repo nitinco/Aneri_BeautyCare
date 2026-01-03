@@ -10,6 +10,7 @@
             <div></div>
             <div>
                 <button class="btn btn-sm btn-primary" onclick="openAddStock()"><i class="bi bi-plus-lg"></i> Add Stock</button>
+                <button class="btn btn-sm btn-secondary ms-2" onclick="(new bootstrap.Modal(document.getElementById('suppliersListModal'))).show()"><i class="bi bi-people"></i> Manage Suppliers</button>
             </div>
         </div>
 
@@ -73,8 +74,62 @@
         </div>
     </div>
 </div>
+            <!-- Suppliers List Modal -->
+            <div class="modal fade" id="suppliersListModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Suppliers</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="d-flex justify-content-between mb-3">
+                                <h6 class="mb-0">Suppliers</h6>
+                                <button class="btn btn-primary" onclick="(new bootstrap.Modal(document.getElementById('supplierModal'))).show()">Add Supplier</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead><tr><th>ID</th><th>Name</th><th>Contact</th><th>Address</th><th>Actions</th></tr></thead>
+                                    <tbody id="suppliersTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplier Modal (Add / Edit) -->
+            <div class="modal fade" id="supplierModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Add Supplier</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="supplierForm">
+                                <div class="mb-3"><label class="form-label">Name</label><input id="supplierName" class="form-control" required></div>
+                                <div class="mb-3"><label class="form-label">Contact</label><input id="supplierContact" class="form-control"></div>
+                                <div class="mb-3"><label class="form-label">Address</label><textarea id="supplierAddress" class="form-control"></textarea></div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button class="btn btn-primary" id="saveSupplierBtn">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>
+document.getElementById('saveSupplierBtn').addEventListener('click', async function(){ if (window.saveSupplierFromModal) await window.saveSupplierFromModal(); });
+// refresh supplier list when suppliers modal is shown
+document.getElementById('suppliersListModal')?.addEventListener('show.bs.modal', function(){ if (window.loadSuppliersPage) loadSuppliersPage(); });
+</script>
 {% endblock %}

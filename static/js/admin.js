@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (document.getElementById('brandsTableBody')) await loadBrandsPage();
     if (document.getElementById('appointmentsTableBody')) await loadAppointmentsPage();
     if (document.getElementById('stockTableBody')) await loadStockPage();
+    if (document.getElementById('suppliersTableBody')) await loadSuppliersPage();
     if (document.getElementById('stockTableBody')) await populateStockSelects();
 });
 
@@ -212,9 +213,10 @@ async function loadComplaintsPage() {
         tbody.innerHTML = '';
         complaints.forEach(c => {
             const tr = document.createElement('tr');
+            const customerName = c.customer_name || c.customer_id || '';
             tr.innerHTML = `
                 <td>${c.id}</td>
-                <td>${c.customer_id}</td>
+                <td>${customerName}</td>
                 <td>${c.subject}</td>
                 <td>${c.message}</td>
                 <td>${c.status || 'open'}</td>
@@ -780,5 +782,100 @@ async function populateProductBrandSelect() {
         brands.forEach(x => { const opt = document.createElement('option'); opt.value = x.id; opt.textContent = x.name; sel.appendChild(opt); });
     } catch (e) {
         console.warn('populateProductBrandSelect failed', e);
+    }
+}
+
+// Suppliers: load, add, edit, delete
+window._editingSupplierId = null;
+
+async function loadSuppliersPage() {
+    try {
+        LoadingOverlay.show('Loading suppliers...');
+        const resp = await apiClient.getSuppliers();
+        const suppliers = Array.isArray(resp) ? resp : (resp.suppliers || []);
+        const tbody = document.getElementById('suppliersTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        suppliers.forEach(s => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${s.id}</td>
+                <td>${s.name || ''}</td>
+                <td>${s.contact || ''}</td>
+                <td>${s.address || ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary me-2" onclick="openEditSupplier(${s.id})">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSupplier(${s.id})">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error('loadSuppliersPage error', err);
+        Toast.error('Failed to load suppliers');
+    } finally {
+        LoadingOverlay.hide();
+    }
+}
+
+function openEditSupplier(id) {
+    const rows = document.querySelectorAll('#suppliersTableBody tr');
+    let found = null;
+    rows.forEach(r => {
+        const cols = r.querySelectorAll('td');
+        if (cols && Number(cols[0].textContent) === Number(id)) {
+            found = { id: id, name: cols[1].textContent, contact: cols[2].textContent, address: cols[3].textContent };
+        }
+    });
+    if (found) {
+        window._editingSupplierId = id;
+        document.getElementById('supplierName').value = found.name || '';
+        document.getElementById('supplierContact').value = found.contact || '';
+        document.getElementById('supplierAddress').value = found.address || '';
+        var modal = new bootstrap.Modal(document.getElementById('supplierModal'));
+        modal.show();
+    }
+}
+
+async function saveSupplierFromModal() {
+    const name = document.getElementById('supplierName').value.trim();
+    const contact = document.getElementById('supplierContact').value.trim();
+    const address = document.getElementById('supplierAddress').value.trim();
+    if (!name) { Toast.error('Name required'); return; }
+    try {
+        LoadingOverlay.show('Saving supplier...');
+        if (window._editingSupplierId) {
+            await apiClient.updateSupplier(window._editingSupplierId, { name, contact, address });
+            Toast.success('Supplier updated');
+            window._editingSupplierId = null;
+        } else {
+            await apiClient.createSupplier({ name, contact, address });
+            Toast.success('Supplier created');
+        }
+        var modal = bootstrap.Modal.getInstance(document.getElementById('supplierModal')) || new bootstrap.Modal(document.getElementById('supplierModal'));
+        modal.hide();
+        loadSuppliersPage();
+        try { populateStockSelects(); } catch (e) {}
+    } catch (err) {
+        console.error('saveSupplierFromModal error', err);
+        Toast.error(err.message || 'Failed to save supplier');
+    } finally {
+        LoadingOverlay.hide();
+    }
+}
+
+async function deleteSupplier(id) {
+    if (!confirm('Delete supplier #' + id + '?')) return;
+    try {
+        LoadingOverlay.show('Deleting supplier...');
+        await apiClient.deleteSupplier(id);
+        Toast.success('Supplier deleted');
+        loadSuppliersPage();
+        try { populateStockSelects(); } catch (e) {}
+    } catch (err) {
+        console.error('deleteSupplier error', err);
+        Toast.error(err.message || 'Failed to delete supplier');
+    } finally {
+        LoadingOverlay.hide();
     }
 }

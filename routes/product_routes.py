@@ -21,6 +21,50 @@ def list_suppliers():
     return jsonify([s.to_dict() for s in Supplier.query.all()])
 
 
+@prod_bp.route('/suppliers', methods=['POST'])
+@jwt_required()
+def create_supplier():
+    if not admin_required():
+        return jsonify({'message': 'admin role required'}), 403
+    data = request.get_json() or {}
+    s = Supplier(name=data.get('name'), contact=data.get('contact'), address=data.get('address'))
+    db.session.add(s)
+    db.session.commit()
+    return jsonify(s.to_dict()), 201
+
+
+@prod_bp.route('/suppliers/<int:supplier_id>', methods=['PUT'])
+@jwt_required()
+def update_supplier(supplier_id):
+    if not admin_required():
+        return jsonify({'message': 'admin role required'}), 403
+    s = Supplier.query.get(supplier_id)
+    if not s:
+        return jsonify({'message': 'not found'}), 404
+    data = request.get_json() or {}
+    s.name = data.get('name', s.name)
+    s.contact = data.get('contact', s.contact)
+    s.address = data.get('address', s.address)
+    db.session.commit()
+    return jsonify(s.to_dict())
+
+
+@prod_bp.route('/suppliers/<int:supplier_id>', methods=['DELETE'])
+@jwt_required()
+def delete_supplier(supplier_id):
+    if not admin_required():
+        return jsonify({'message': 'admin role required'}), 403
+    s = Supplier.query.get(supplier_id)
+    if not s:
+        return jsonify({'message': 'not found'}), 404
+    # optional: prevent delete if stocks exist
+    if s.stocks and len(s.stocks) > 0:
+        return jsonify({'message': 'supplier has associated stock entries'}), 400
+    db.session.delete(s)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 @prod_bp.route('/brands', methods=['POST'])
 @jwt_required()
 def create_brand():

@@ -155,7 +155,7 @@ function displayServices(services) {
                     </div>
                 </div>
                 <div class="card-footer bg-transparent border-0 p-3">
-                    <button class="btn btn-primary w-100 book-service-btn" data-service-id="${service.id}" data-service-name="${service.name}">
+                    <button class="btn btn-primary w-100 book-service-btn" data-service-id="${service.id}" data-service-name="${service.name}" data-service-type="${service.service_type || 'in-center'}">
                         <i class="bi bi-calendar-check"></i> Book Now
                     </button>
                 </div>
@@ -168,7 +168,8 @@ function displayServices(services) {
         btn.addEventListener('click', function() {
             const serviceId = this.dataset.serviceId;
             const serviceName = this.dataset.serviceName;
-            bookService(serviceId, serviceName);
+            const serviceType = this.dataset.serviceType || '';
+            bookService(serviceId, serviceName, serviceType);
         });
     });
 }
@@ -232,7 +233,9 @@ function bookService(serviceId, serviceName) {
         }
     } else {
         // Redirect to booking page with service pre-selected
-        window.location.href = `${window.APP_CONFIG.URLS.customerDashboard}?book=${serviceId}`;
+        // if serviceType is home, propagate type so booking page can pre-select home flow
+        const q = serviceType === 'home' ? `?book=${serviceId}&type=home` : `?book=${serviceId}`;
+        window.location.href = `${window.APP_CONFIG.URLS.customerDashboard}${q}`;
     }
 }
 </script>

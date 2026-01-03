@@ -173,6 +173,13 @@ class APIClient {
     async createCategory(categoryData) {
         return await this.post('/api/categories', categoryData);
     }
+    async updateCategory(id, categoryData) {
+        return await this.put(`/api/categories/${id}`, categoryData);
+    }
+
+    async deleteCategory(id) {
+        return await this.delete(`/api/categories/${id}`);
+    }
     
     // Packages endpoints
     async getPackages() {
@@ -198,6 +205,18 @@ class APIClient {
     async getSuppliers() {
         const data = await this.get('/suppliers');
         return Array.isArray(data) ? { suppliers: data } : data;
+    }
+
+    async createSupplier(supplierData) {
+        return await this.post('/suppliers', supplierData);
+    }
+
+    async updateSupplier(id, supplierData) {
+        return await this.put(`/suppliers/${id}`, supplierData);
+    }
+
+    async deleteSupplier(id) {
+        return await this.delete(`/suppliers/${id}`);
     }
 
     // Customer endpoints
@@ -339,6 +358,14 @@ class APIClient {
         return await this.post('/deliveries', deliveryData);
     }
 
+    async createRazorpayOrder(orderId) {
+        return await this.post('/payments/razorpay/create_order', { order_id: orderId });
+    }
+
+    async verifyRazorpayPayment(payload) {
+        return await this.post('/payments/razorpay/verify', payload);
+    }
+
     async assignDelivery(deliveryId, staffId) {
         return await this.put(`/deliveries/${deliveryId}/assign`, { staff_id: staffId });
     }
@@ -354,6 +381,10 @@ class APIClient {
 
     async listComplaints() {
         return await this.get('/complaints');
+    }
+
+    async getMyComplaints() {
+        return await this.get('/complaints/me');
     }
 
     async reviewComplaint(complaintId, payload) {

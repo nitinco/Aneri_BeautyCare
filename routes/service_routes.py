@@ -37,6 +37,42 @@ def create_category():
     return jsonify(c.to_dict()), 201
 
 
+@svc_bp.route('/categories/<int:cat_id>', methods=['PUT'])
+@jwt_required()
+def update_category(cat_id):
+    if not admin_required():
+        return jsonify({'message': 'admin role required'}), 403
+    c = Category.query.get(cat_id)
+    if not c:
+        return jsonify({'message': 'category not found'}), 404
+    data = request.get_json() or {}
+    c.name = data.get('name', c.name)
+    c.description = data.get('description', c.description)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'message': 'failed to update'}), 500
+    return jsonify(c.to_dict()), 200
+
+
+@svc_bp.route('/categories/<int:cat_id>', methods=['DELETE'])
+@jwt_required()
+def delete_category(cat_id):
+    if not admin_required():
+        return jsonify({'message': 'admin role required'}), 403
+    c = Category.query.get(cat_id)
+    if not c:
+        return jsonify({'message': 'category not found'}), 404
+    try:
+        db.session.delete(c)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'message': 'failed to delete'}), 500
+    return jsonify({'message': 'deleted'}), 200
+
+
 @svc_bp.route('/services', methods=['GET'])
 def list_services():
     services = Service.query.all()

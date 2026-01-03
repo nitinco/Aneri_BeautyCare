@@ -11,6 +11,7 @@ class Appointment(db.Model):
     end_datetime = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.String(30), nullable=False, default='pending')  # pending, approved, rejected, cancelled, completed
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    service_type = db.Column(db.String(10), nullable=False, default='salon')  # salon or home
 
     customer = db.relationship('Customer', backref=db.backref('appointments', lazy=True))
     staff = db.relationship('Staff', backref=db.backref('appointments', lazy=True))
@@ -25,6 +26,7 @@ class Appointment(db.Model):
             'start_datetime': self.start_datetime.isoformat() if self.start_datetime else None,
             'end_datetime': self.end_datetime.isoformat() if self.end_datetime else None,
             'status': self.status,
+            'service_type': self.service_type,  # Include service_type in the dictionary
         }
 
 

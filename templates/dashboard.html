@@ -114,6 +114,18 @@
                         </div>
                     </div>
                 </div>
+                <!-- My Complaints -->
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">My Complaints</h5>
+                        <button class="btn btn-sm btn-primary" id="newComplaintBtn">New Complaint</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="complaintsList">
+                            <div class="text-center py-3 text-muted">Loading...</div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Profile Summary -->
@@ -311,6 +323,85 @@ async function loadDashboardData() {
 }
 </script>
 <!-- Edit Profile Modal -->
+<!-- New Complaint Modal -->
+<div class="modal fade" id="newComplaintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Complaint</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newComplaintForm">
+                    <div class="mb-3"><label class="form-label">Subject</label><input id="complaintSubject" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Message</label><textarea id="complaintMessage" class="form-control" rows="4" required></textarea></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="saveComplaintBtn">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const newBtn = document.getElementById('newComplaintBtn');
+    if (newBtn) newBtn.addEventListener('click', function() { var m = new bootstrap.Modal(document.getElementById('newComplaintModal')); m.show(); });
+    // initial load of complaints
+    try { if (window.apiClient) loadMyComplaints(); } catch (e) {}
+    // wire save
+    const saveBtn = document.getElementById('saveComplaintBtn');
+    saveBtn && saveBtn.addEventListener('click', async function() {
+        const subject = document.getElementById('complaintSubject').value.trim();
+        const message = document.getElementById('complaintMessage').value.trim();
+        if (!subject || !message) { alert('Subject and message required'); return; }
+        try {
+            LoadingOverlay.show('Submitting complaint...');
+            await window.apiClient.submitComplaint({ subject, message });
+            Toast.success('Complaint submitted');
+            var modal = bootstrap.Modal.getInstance(document.getElementById('newComplaintModal')) || new bootstrap.Modal(document.getElementById('newComplaintModal'));
+            modal.hide();
+            document.getElementById('complaintSubject').value = '';
+            document.getElementById('complaintMessage').value = '';
+            loadMyComplaints();
+        } catch (err) {
+            console.error('submit complaint error', err);
+            Toast.error(err.message || 'Failed to submit complaint');
+        } finally { LoadingOverlay.hide(); }
+    });
+});
+
+async function loadMyComplaints() {
+    const container = document.getElementById('complaintsList');
+    if (!container || !window.apiClient) return;
+    container.innerHTML = '<div class="text-center py-3 text-muted">Loading...</div>';
+    try {
+        const resp = await window.apiClient.getMyComplaints();
+        const comps = Array.isArray(resp) ? resp : (resp.complaints || []);
+        if (!comps || comps.length === 0) {
+            container.innerHTML = '<div class="text-center py-3 text-muted">No complaints yet</div>';
+            return;
+        }
+        container.innerHTML = comps.map(c => `
+            <div class="border rounded p-3 mb-2">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-bold">${c.subject || 'No subject'}</div>
+                        <div class="text-muted small">${new Date(c.created_at).toLocaleString()}</div>
+                    </div>
+                    <span class="badge ${c.status === 'open' ? 'bg-warning text-dark' : c.status === 'reviewed' ? 'bg-success' : 'bg-secondary'}">${c.status}</span>
+                </div>
+                <div class="mt-2">${c.message || ''}</div>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('loadMyComplaints error', err);
+        container.innerHTML = '<div class="text-danger">Failed to load complaints</div>';
+    }
+}
+</script>
 <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
