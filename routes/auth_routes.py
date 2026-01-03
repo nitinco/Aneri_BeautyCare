@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from extensions import db
 from models.user import Users
+from models import Customer
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -68,6 +69,11 @@ def register():
 
     db.session.add(user)
     try:
+        # create customer profile for role 'customer' within same transaction
+        db.session.flush()
+        if role == 'customer':
+            cust = Customer(user_id=user.id)
+            db.session.add(cust)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
