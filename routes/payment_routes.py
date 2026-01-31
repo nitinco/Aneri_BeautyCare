@@ -1,3 +1,4 @@
+print("payment routes is loaded")
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required
 from extensions import db
@@ -40,6 +41,40 @@ def create_razorpay_order():
         return jsonify({'message': 'failed to create razorpay order', 'error': str(e)}), 500
 
     return jsonify({'key_id': key_id, 'razorpay_order': rp_order, 'order_id': order.id})
+
+
+@pay_bp.route('/razorpay/create_order_from_amount', methods=['POST'])
+@jwt_required()
+def create_razorpay_order_from_amount():
+    """Create Razorpay order from cart amount (before backend order creation)"""
+    data = request.get_json() or {}
+    amount = data.get('amount')
+    if not amount:
+        return jsonify({'message': 'amount required'}), 400
+
+    key_id = (current_app.config.get('RAZORPAY_KEY_ID') or os.getenv('RAZORPAY_KEY_ID') or '').strip()
+    key_secret = (current_app.config.get('RAZORPAY_KEY_SECRET') or os.getenv('RAZORPAY_KEY_SECRET') or '').strip()
+    if not key_id or not key_secret:
+        return jsonify({'message': 'Razorpay not configured'}), 503
+
+    client = razorpay.Client(auth=(key_id, key_secret))
+    try:
+        amount_paise = int(round(float(amount) * 100))
+    except Exception:
+        return jsonify({'message': 'invalid amount'}), 400
+    
+    payload = {
+        'amount': amount_paise,
+        'currency': 'INR',
+        'receipt': f'cart_{amount_paise}',
+        'payment_capture': 1
+    }
+    try:
+        rp_order = client.order.create(data=payload)
+    except Exception as e:
+        return jsonify({'message': 'failed to create razorpay order', 'error': str(e)}), 500
+
+    return jsonify({'key_id': key_id, 'razorpay_order': rp_order})
 
 
 @pay_bp.route('/razorpay/verify', methods=['POST'])

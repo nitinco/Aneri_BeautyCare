@@ -55,7 +55,7 @@
     <script>
         // Global app configuration
         window.APP_CONFIG = {
-            API_BASE_URL: '',  // Same origin
+            API_BASE_URL: 'http://localhost:5000',  // Hardcoded for development
             TOKEN_KEY: 'aneri_auth_token',
             USER_KEY: 'aneri_user',
             URLS: {
@@ -63,6 +63,8 @@
                 login: '{{ url_for("main.login") }}',
                 register: '{{ url_for("main.register") }}',
                 services: '{{ url_for("main.services") }}',
+                packages: '{{ url_for("main.packages") }}',
+                bookPackage: '{{ url_for("main.book_package") }}',
                 customerDashboard: '{{ url_for("main.customer_dashboard") }}',
                 adminDashboard: '{{ url_for("main.admin_dashboard") }}',
                 staffDashboard: '{{ url_for("main.staff_dashboard") }}'

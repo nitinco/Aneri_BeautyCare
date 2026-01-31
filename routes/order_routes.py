@@ -91,7 +91,9 @@ def create_order():
         prod = Product.query.get(it.product_id)
         price = float(prod.price) if prod else 0
         total += price * it.quantity
-    order = Order(customer_id=customer_id, cart_id=cart_id, total_amount=total, status='pending')
+    tax = round(total * 0.05, 2)
+    grand_total = total + tax
+    order = Order(customer_id=customer_id, cart_id=cart_id, total_amount=grand_total, status='pending')
     db.session.add(order)
     db.session.flush()
     for it in cart.items:

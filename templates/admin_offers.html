@@ -17,7 +17,7 @@
                                 <div class="table-responsive">
                                         <table class="table table-striped">
                                                 <thead>
-                                                        <tr><th>ID</th><th>Title</th><th>Description</th><th>Discount</th><th>Status</th><th>Actions</th></tr>
+                                                        <tr><th>ID</th><th>Title</th><th>Type</th><th>Applies To</th><th>Discount</th><th>Status</th><th>Actions</th></tr>
                                                 </thead>
                                                 <tbody id="offersTableBody"></tbody>
                                         </table>
@@ -46,6 +46,39 @@
                         <textarea class="form-control" id="offerDescription"></textarea>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Offer Type</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="offerType" id="generalOffer" value="general" checked>
+                            <label class="form-check-label" for="generalOffer">
+                                General Offer
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="offerType" id="productOffer" value="product">
+                            <label class="form-check-label" for="productOffer">
+                                Product Offer
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="offerType" id="serviceOffer" value="service">
+                            <label class="form-check-label" for="serviceOffer">
+                                Service Offer
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3" id="productSelectDiv" style="display: none;">
+                        <label class="form-label">Select Product</label>
+                        <select class="form-control" id="offerProductId">
+                            <option value="">Choose a product...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="serviceSelectDiv" style="display: none;">
+                        <label class="form-label">Select Service</label>
+                        <select class="form-control" id="offerServiceId">
+                            <option value="">Choose a service...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Discount (%)</label>
                         <input type="number" class="form-control" id="offerDiscount" value="0" />
                     </div>
@@ -67,15 +100,132 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 <script>
+let products = [];
+let services = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Load products and services for dropdowns
+    loadProductsAndServices();
+    
+    // Handle offer type radio button changes
+    document.querySelectorAll('input[name="offerType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            toggleOfferTypeFields();
+        });
+    });
+});
+
+async function loadProductsAndServices() {
+    try {
+        const [productsRes, servicesRes] = await Promise.all([
+            apiClient.getProducts(),
+            apiClient.getServices()
+        ]);
+        products = productsRes.products || [];
+        services = servicesRes.services || [];
+        
+        populateProductSelect();
+        populateServiceSelect();
+    } catch (error) {
+        console.error('Failed to load products and services:', error);
+    }
+}
+
+function populateProductSelect() {
+    const select = document.getElementById('offerProductId');
+    select.innerHTML = '<option value="">Choose a product...</option>';
+    products.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.id;
+        option.textContent = `${product.name} (${product.sku || 'No SKU'})`;
+        select.appendChild(option);
+    });
+}
+
+function populateServiceSelect() {
+    const select = document.getElementById('offerServiceId');
+    select.innerHTML = '<option value="">Choose a service...</option>';
+    services.forEach(service => {
+        const option = document.createElement('option');
+        option.value = service.id;
+        option.textContent = `${service.name} (${service.service_type})`;
+        select.appendChild(option);
+    });
+}
+
+function toggleOfferTypeFields() {
+    const productDiv = document.getElementById('productSelectDiv');
+    const serviceDiv = document.getElementById('serviceSelectDiv');
+    const selectedType = document.querySelector('input[name="offerType"]:checked').value;
+    
+    if (selectedType === 'product') {
+        productDiv.style.display = 'block';
+        serviceDiv.style.display = 'none';
+    } else if (selectedType === 'service') {
+        productDiv.style.display = 'none';
+        serviceDiv.style.display = 'block';
+    } else {
+        productDiv.style.display = 'none';
+        serviceDiv.style.display = 'none';
+    }
+}
+
 document.getElementById('saveOfferBtn').addEventListener('click', async function(){
     const title = document.getElementById('offerTitle').value.trim();
     const description = document.getElementById('offerDescription').value.trim();
     const discount = parseFloat(document.getElementById('offerDiscount').value) || 0;
     const is_active = document.getElementById('offerActive').checked;
+    const offerType = document.querySelector('input[name="offerType"]:checked').value;
+    
     if(!title){ Toast.error('Title required'); return; }
-    try{ LoadingOverlay.show('Saving offer...'); await apiClient.createOffer({ title, description, discount_percent: discount, is_active }); Toast.success('Offer created'); var modal = bootstrap.Modal.getInstance(document.getElementById('offerModal')); modal.hide(); loadOffersPage(); }
-    catch(e){ console.error(e); Toast.error('Failed to save offer'); }
-    finally{ LoadingOverlay.hide(); }
+    
+    let offerData = { 
+        title, 
+        description, 
+        discount_percent: discount, 
+        is_active 
+    };
+    
+    if (offerType === 'product') {
+        const productId = document.getElementById('offerProductId').value;
+        if (!productId) {
+            Toast.error('Please select a product');
+            return;
+        }
+        offerData.is_product_offer = true;
+        offerData.product_id = parseInt(productId);
+        offerData.service_id = null;
+    } else if (offerType === 'service') {
+        const serviceId = document.getElementById('offerServiceId').value;
+        if (!serviceId) {
+            Toast.error('Please select a service');
+            return;
+        }
+        offerData.is_product_offer = false;
+        offerData.service_id = parseInt(serviceId);
+        offerData.product_id = null;
+    } else {
+        // General offer
+        offerData.is_product_offer = false;
+        offerData.product_id = null;
+        offerData.service_id = null;
+    }
+    
+    try{ 
+        LoadingOverlay.show('Saving offer...'); 
+        await apiClient.createOffer(offerData); 
+        Toast.success('Offer created'); 
+        var modal = bootstrap.Modal.getInstance(document.getElementById('offerModal')); 
+        modal.hide(); 
+        loadOffersPage(); 
+    }
+    catch(e){ 
+        console.error(e); 
+        Toast.error('Failed to save offer'); 
+    }
+    finally{ 
+        LoadingOverlay.hide(); 
+    }
 });
 </script>
 {% endblock %}

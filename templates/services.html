@@ -131,9 +131,16 @@ function displayServices(services) {
         return;
     }
     
-    grid.innerHTML = services.map(service => `
+    grid.innerHTML = services.map(service => {
+        const hasOffer = service.discounted_price && service.applied_offer;
+        const originalPrice = parseFloat(service.price);
+        const discountedPrice = hasOffer ? parseFloat(service.discounted_price) : originalPrice;
+        
+        return `
         <div class="col-lg-4 col-md-6">
-            <div class="card service-card border-0 shadow-sm h-100">
+            <div class="card service-card border-0 shadow-sm h-100 ${hasOffer ? 'border-success' : ''}">
+                ${service.image ? `<img src="/static/${service.image}" class="card-img-top" alt="${service.name}" style="height: 200px; object-fit: cover;">` : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;"><i class="bi bi-scissors text-muted" style="font-size: 3rem;"></i></div>`}
+                ${hasOffer ? `<div class="position-absolute top-0 end-0 bg-success text-white px-2 py-1 rounded-start" style="font-size: 0.8rem;">${service.applied_offer.discount_percent}% OFF</div>` : ''}
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div class="service-icon">
@@ -150,18 +157,35 @@ function displayServices(services) {
                             <span class="text-muted">
                                 <i class="bi bi-clock"></i> ${service.duration_mins ?? service.duration} mins
                             </span>
-                            <span class="fw-bold text-primary h5 mb-0">₹${service.price}</span>
+                            <div>
+                                ${hasOffer ? `
+                                    <span class="fw-bold text-success h5 mb-0">₹${discountedPrice.toFixed(2)}</span><br>
+                                    <small class="text-muted text-decoration-line-through">₹${originalPrice.toFixed(2)}</small>
+                                    <small class="text-success d-block">${service.applied_offer.title}</small>
+                                ` : `
+                                    <span class="fw-bold text-primary h5 mb-0">₹${originalPrice.toFixed(2)}</span>
+                                `}
+                            </div>
                         </div>
+                        
+                        ${service.offers && service.offers.length > 1 ? `
+                            <div class="mb-2">
+                                <select class="form-select form-select-sm" id="serviceOfferSelect-${service.id}" onchange="applyServiceOffer(${service.id})">
+                                    <option value="">Select Offer</option>
+                                    ${service.offers.map(offer => `<option value="${offer.id}" data-discount="${offer.discount_percent}" data-price="${(originalPrice * (1 - offer.discount_percent / 100)).toFixed(2)}">${offer.title} (${offer.discount_percent}% off)</option>`).join('')}
+                                </select>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
                 <div class="card-footer bg-transparent border-0 p-3">
-                    <button class="btn btn-primary w-100 book-service-btn" data-service-id="${service.id}" data-service-name="${service.name}" data-service-type="${service.service_type || 'in-center'}">
+                    <button class="btn ${hasOffer ? 'btn-success' : 'btn-primary'} w-100 book-service-btn" data-service-id="${service.id}" data-service-name="${service.name}" data-service-type="${service.service_type || 'in-center'}" data-offer-id="${hasOffer ? service.applied_offer.id : ''}">
                         <i class="bi bi-calendar-check"></i> Book Now
                     </button>
                 </div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
     
     // Add event listeners to book buttons
     document.querySelectorAll('.book-service-btn').forEach(btn => {
@@ -169,9 +193,40 @@ function displayServices(services) {
             const serviceId = this.dataset.serviceId;
             const serviceName = this.dataset.serviceName;
             const serviceType = this.dataset.serviceType || '';
-            bookService(serviceId, serviceName, serviceType);
+            const offerId = this.dataset.offerId || '';
+            
+            // Check if user selected a different offer
+            const offerSelect = document.getElementById(`serviceOfferSelect-${serviceId}`);
+            if (offerSelect && offerSelect.value) {
+                const selectedOffer = allServices.find(s => s.id == serviceId).offers.find(o => o.id == offerSelect.value);
+                bookService(serviceId, serviceName, serviceType, selectedOffer ? selectedOffer.id : offerId);
+            } else {
+                bookService(serviceId, serviceName, serviceType, offerId);
+            }
         });
     });
+}
+
+function applyServiceOffer(serviceId) {
+    const select = document.getElementById(`serviceOfferSelect-${serviceId}`);
+    const selectedOption = select.options[select.selectedIndex];
+    const discountPercent = selectedOption.getAttribute('data-discount');
+    const discountedPrice = selectedOption.getAttribute('data-price');
+    
+    // Update the displayed price
+    const card = select.closest('.card-body');
+    const priceContainer = card.querySelector('.service-details div:last-child');
+    const originalPrice = parseFloat(allServices.find(s => s.id == serviceId).price);
+    
+    if (discountPercent && discountedPrice) {
+        priceContainer.innerHTML = `
+            <span class="fw-bold text-success h5 mb-0">₹${parseFloat(discountedPrice).toFixed(2)}</span><br>
+            <small class="text-muted text-decoration-line-through">₹${originalPrice.toFixed(2)}</small>
+            <small class="text-success d-block">${selectedOption.text.split(' (')[0]}</small>
+        `;
+    } else {
+        priceContainer.innerHTML = `<span class="fw-bold text-primary h5 mb-0">₹${originalPrice.toFixed(2)}</span>`;
+    }
 }
 
 function getCategoryName(categoryId) {
@@ -222,7 +277,7 @@ function filterAndSort() {
     displayServices(filtered);
 }
 
-function bookService(serviceId, serviceName) {
+function bookService(serviceId, serviceName, serviceType, offerId) {
     // Check if user is logged in
     const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
     
@@ -234,8 +289,14 @@ function bookService(serviceId, serviceName) {
     } else {
         // Redirect to booking page with service pre-selected
         // if serviceType is home, propagate type so booking page can pre-select home flow
-        const q = serviceType === 'home' ? `?book=${serviceId}&type=home` : `?book=${serviceId}`;
-        window.location.href = `${window.APP_CONFIG.URLS.customerDashboard}${q}`;
+        let queryParams = `?book=${serviceId}`;
+        if (serviceType === 'home') {
+            queryParams += '&type=home';
+        }
+        if (offerId) {
+            queryParams += `&offer=${offerId}`;
+        }
+        window.location.href = `${window.APP_CONFIG.URLS.customerDashboard}${queryParams}`;
     }
 }
 </script>

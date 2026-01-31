@@ -1,9 +1,16 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt
 from extensions import db
 from models import Brand, Product, ProductDetail, Supplier, Stock
+import os
+import uuid
+from werkzeug.utils import secure_filename
 
 prod_bp = Blueprint('product', __name__)
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
 
 
 def admin_required():
@@ -110,6 +117,7 @@ def delete_brand(brand_id):
 
 @prod_bp.route('/products', methods=['GET'])
 def list_products():
+    from models import Offer
     prods = Product.query.all()
     out = []
     for p in prods:
@@ -118,6 +126,27 @@ def list_products():
             d['brand_name'] = p.brand.name if p.brand else None
         except Exception:
             d['brand_name'] = None
+        
+        # Get applicable offers for this product
+        offers = Offer.query.filter(
+            ((Offer.product_id == p.id) | (Offer.product_id.is_(None))) &
+            (Offer.is_active == True)
+        ).all()
+        
+        # Filter valid offers
+        valid_offers = [o for o in offers if o.is_valid()]
+        d['offers'] = [o.to_dict() for o in valid_offers]
+        
+        # Calculate discounted price if any offer applies
+        if valid_offers:
+            # Find the best offer (highest discount)
+            best_offer = max(valid_offers, key=lambda o: o.discount_percent)
+            d['discounted_price'] = float(p.price) * (1 - best_offer.discount_percent / 100)
+            d['applied_offer'] = best_offer.to_dict()
+        else:
+            d['discounted_price'] = None
+            d['applied_offer'] = None
+            
         out.append(d)
     return jsonify(out)
 
@@ -127,8 +156,36 @@ def list_products():
 def create_product():
     if not admin_required():
         return jsonify({'message': 'admin role required'}), 403
-    data = request.get_json() or {}
-    p = Product(name=data.get('name'), brand_id=data.get('brand_id'), sku=data.get('sku'), price=data.get('price',0))
+    
+    # Handle both form data and JSON
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        name = request.form.get('name')
+        brand_id = request.form.get('brand_id')
+        sku = request.form.get('sku')
+        price = request.form.get('price', 0)
+        image_file = request.files.get('image')
+    else:
+        data = request.get_json() or {}
+        name = data.get('name')
+        brand_id = data.get('brand_id')
+        sku = data.get('sku')
+        price = data.get('price', 0)
+        image_file = None
+
+    if not name:
+        return jsonify({'message': 'name is required'}), 400
+
+    # Handle image upload first
+    image_path = None
+    if image_file and allowed_file(image_file.filename):
+        filename = secure_filename(image_file.filename)
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
+        image_file.save(upload_path)
+        image_path = f"uploads/{unique_filename}"
+
+    # Create the product
+    p = Product(name=name, brand_id=brand_id, sku=sku, price=price, image=image_path)
     db.session.add(p)
     db.session.commit()
     return jsonify(p.to_dict()), 201
@@ -142,14 +199,36 @@ def update_product(product_id):
     p = Product.query.get(product_id)
     if not p:
         return jsonify({'message': 'not found'}), 404
-    data = request.get_json() or {}
-    p.name = data.get('name', p.name)
-    p.brand_id = data.get('brand_id', p.brand_id)
-    p.sku = data.get('sku', p.sku)
-    try:
+    
+    # Handle both form data and JSON
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        p.name = request.form.get('name', p.name)
+        p.brand_id = request.form.get('brand_id', p.brand_id)
+        p.sku = request.form.get('sku', p.sku)
+        p.price = request.form.get('price', p.price)
+        image_file = request.files.get('image')
+    else:
+        data = request.get_json() or {}
+        p.name = data.get('name', p.name)
+        p.brand_id = data.get('brand_id', p.brand_id)
+        p.sku = data.get('sku', p.sku)
         p.price = data.get('price', p.price)
-    except Exception:
-        pass
+        image_file = None
+
+    # Handle image upload
+    if image_file and allowed_file(image_file.filename):
+        # Delete old image if exists
+        if p.image:
+            old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], os.path.basename(p.image))
+            if os.path.exists(old_image_path):
+                os.remove(old_image_path)
+        
+        filename = secure_filename(image_file.filename)
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
+        image_file.save(upload_path)
+        p.image = f"uploads/{unique_filename}"
+
     db.session.commit()
     return jsonify(p.to_dict())
 

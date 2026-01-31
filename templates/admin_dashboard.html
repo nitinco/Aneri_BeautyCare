@@ -86,6 +86,73 @@
             </div>
         </div>
         
+        <!-- Additional Stats Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Package Bookings</h6>
+                                <h3 class="mb-0" id="totalPackageBookings">0</h3>
+                            </div>
+                            <div class="text-info" style="font-size: 2.5rem;">
+                                <i class="bi bi-collection"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Total Orders</h6>
+                                <h3 class="mb-0" id="totalOrders">0</h3>
+                            </div>
+                            <div class="text-warning" style="font-size: 2.5rem;">
+                                <i class="bi bi-bag-check"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Total Income</h6>
+                                <h3 class="mb-0">₹<span id="totalIncome">0</span></h3>
+                            </div>
+                            <div class="text-success" style="font-size: 2.5rem;">
+                                <i class="bi bi-cash-stack"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">Pending Payments</h6>
+                                <h3 class="mb-0" id="pendingPayments">0</h3>
+                            </div>
+                            <div class="text-danger" style="font-size: 2.5rem;">
+                                <i class="bi bi-clock-history"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Quick Actions -->
         <div class="row mb-4">
             <div class="col-12">
@@ -99,6 +166,18 @@
                                 <a href="{{ url_for('main.admin_services') }}" class="btn btn-outline-primary w-100">
                                     <i class="bi bi-tools"></i><br>
                                     <small>Manage Services</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_packages') }}" class="btn btn-outline-info w-100">
+                                    <i class="bi bi-collection"></i><br>
+                                    <small>Manage Packages</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-6">
+                                <a href="{{ url_for('main.admin_package_bookings') }}" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-calendar-event"></i><br>
+                                    <small>Package Bookings</small>
                                 </a>
                             </div>
                             <div class="col-lg-2 col-md-4 col-sm-6">
@@ -284,6 +363,55 @@ async function loadDashboardData() {
             console.warn('Failed to load appointments', e);
             document.getElementById('todayAppointments').textContent = '0';
             loadAppointmentsTable();
+        }
+
+        // Load package bookings count
+        try {
+            const packageBookingsResp = await window.apiClient.get('/api/package/admin/bookings');
+            const packageBookings = Array.isArray(packageBookingsResp) ? packageBookingsResp : (packageBookingsResp.bookings || []);
+            document.getElementById('totalPackageBookings').textContent = String(packageBookings.length);
+        } catch (e) {
+            console.warn('Failed to load package bookings count', e);
+            document.getElementById('totalPackageBookings').textContent = '0';
+        }
+
+        // Load orders count and calculate total income
+        try {
+            const ordersResp = await window.apiClient.get('/api/orders');
+            const orders = Array.isArray(ordersResp) ? ordersResp : (ordersResp.orders || []);
+            document.getElementById('totalOrders').textContent = String(orders.length);
+
+            // Calculate total income from orders and package bookings
+            let totalIncome = 0;
+            let pendingPayments = 0;
+
+            // Add order amounts
+            orders.forEach(order => {
+                const amount = parseFloat(order.total_amount || order.total || 0);
+                totalIncome += amount;
+                if (order.status !== 'delivered' && order.status !== 'completed') {
+                    pendingPayments++;
+                }
+            });
+
+            // Add package booking amounts
+            const packageBookingsResp = await window.apiClient.get('/api/package/admin/bookings');
+            const packageBookings = Array.isArray(packageBookingsResp) ? packageBookingsResp : (packageBookingsResp.bookings || []);
+            packageBookings.forEach(booking => {
+                const amount = parseFloat(booking.total_amount || 0);
+                totalIncome += amount;
+                if (!booking.razorpay_payment_id) {
+                    pendingPayments++;
+                }
+            });
+
+            document.getElementById('totalIncome').textContent = totalIncome.toFixed(2);
+            document.getElementById('pendingPayments').textContent = String(pendingPayments);
+        } catch (e) {
+            console.warn('Failed to load orders/income data', e);
+            document.getElementById('totalOrders').textContent = '0';
+            document.getElementById('totalIncome').textContent = '0';
+            document.getElementById('pendingPayments').textContent = '0';
         }
         
     } catch (error) {

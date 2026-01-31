@@ -25,37 +25,57 @@
                             </div>
                             <!-- Service Selection -->
                             <div class="mb-4">
-                                <label for="service_id" class="form-label fw-bold">Select Service</label>
-                                <select class="form-select" id="service_id" name="service_id" required>
-                                    <option value="">Choose a service...</option>
-                                </select>
-                                <div class="invalid-feedback">Please select a service.</div>
+                                <label class="form-label fw-bold">Select Service(s)</label>
+                                <div id="servicesGrid" class="row g-2"></div>
+                                <div class="invalid-feedback d-block" id="servicesError" style="display:none;">Please select at least one service.</div>
                             </div>
                             
                             <!-- Service Details Display -->
                             <div id="serviceDetails" class="alert alert-info d-none mb-4">
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <strong>Duration:</strong> <span id="serviceDuration"></span> mins
                                     </div>
-                                    <div class="col-md-6">
-                                        <strong>Price:</strong> ₹<span id="servicePrice"></span>
+                                    <div class="col-md-4">
+                                        <strong>Services Total:</strong> ₹<span id="servicePrice"></span>
+                                    </div>
+                                    <div class="col-md-4" id="homeChargeRow" style="display:none;">
+                                        <strong>Home Service Charge:</strong> ₹<span id="homeCharge">350</span>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-12">
+                                        <strong>Total Payable:</strong> ₹<span id="totalPayable"></span>
                                     </div>
                                 </div>
                             </div>
                             
-                            <!-- Date & Time -->
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <label for="appointment_date" class="form-label fw-bold">Appointment Date</label>
-                                    <input type="date" class="form-control" id="appointment_date" name="appointment_date" required>
-                                    <div class="invalid-feedback">Please select a date.</div>
+                            <!-- Date Selection -->
+                            <div class="mb-4">
+                                <label for="appointment_date" class="form-label fw-bold">Appointment Date</label>
+                                <input type="date" class="form-control" id="appointment_date" name="appointment_date" required>
+                                <div class="invalid-feedback">Please select a date.</div>
+                            </div>
+                            
+                            <!-- Available Time Slots -->
+                            <div class="mb-4" id="timeSlotsSection" style="display: none;">
+                                <label class="form-label fw-bold">Available Time Slots</label>
+                                <div id="timeSlotsGrid" class="row g-2">
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle"></i> Please select a service and date to view available slots.
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="appointment_time" class="form-label fw-bold">Preferred Time</label>
-                                    <input type="time" class="form-control" id="appointment_time" name="appointment_time" required>
-                                    <div class="invalid-feedback">Please select a time.</div>
-                                </div>
+                                <div class="invalid-feedback d-block" id="timeSlotError" style="display:none;">Please select a time slot.</div>
+                            </div>
+                            
+                            <!-- Manual Time Input (fallback) -->
+                            <div class="mb-4" id="manualTimeSection" style="display: none;">
+                                <label for="appointment_time" class="form-label fw-bold">Preferred Time</label>
+                                <input type="time" class="form-control" id="appointment_time" name="appointment_time">
+                                <div class="invalid-feedback">Please select a time.</div>
+                                <small class="text-muted">Use this only if slot selection is not available.</small>
                             </div>
                             
                             <!-- Staff Preference (Optional) -->
@@ -102,6 +122,7 @@
 {% block extra_js %}
 <script>
 let services = [];
+let selectedOfferId = null;
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Check authentication
@@ -119,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const params = new URLSearchParams(window.location.search);
     const preType = params.get('type');
     const preService = params.get('book');
+    const preOffer = params.get('offer');
     if (preType && document.getElementById('service_location')) {
         document.getElementById('service_location').value = preType === 'home' ? 'home' : 'in-center';
     }
@@ -135,29 +157,50 @@ document.addEventListener('DOMContentLoaded', async function() {
             sel.dispatchEvent(new Event('change'));
         }
     }
+    
+    // if an offer was provided, apply it
+    if (preOffer) {
+        selectedOfferId = preOffer;
+    }
 });
 
 async function loadServices() {
     try {
         const response = await fetch('/api/services');
         const data = await response.json();
-        
         if (response.ok) {
             const servicesArray = Array.isArray(data) ? data : (data.services || []);
             services = servicesArray;
-            const serviceSelect = document.getElementById('service_id');
-            // build options grouped by type according to selected service_location
+            const servicesGrid = document.getElementById('servicesGrid');
             const loc = document.getElementById('service_location') ? document.getElementById('service_location').value : 'in-center';
-            serviceSelect.innerHTML = '<option value="">Choose a service...</option>';
+            servicesGrid.innerHTML = '';
             services.forEach(service => {
-                // attach service_type on option so UI can auto-switch
-                const option = document.createElement('option');
-                option.value = service.id;
-                option.textContent = `${service.name} - ₹${service.price}`;
-                option.dataset.duration = service.duration_mins ?? service.duration;
-                option.dataset.price = service.price;
-                option.dataset.type = service.service_type || 'in-center';
-                if (!loc || option.dataset.type === loc) serviceSelect.appendChild(option);
+                if (!loc || (service.service_type || 'in-center') === loc) {
+                    const hasOffer = service.discounted_price && service.applied_offer;
+                    const displayPrice = hasOffer ? service.discounted_price : service.price;
+                    const originalPrice = service.price;
+                    
+                    const col = document.createElement('div');
+                    col.className = 'col-md-6 col-lg-4';
+                    col.innerHTML = `
+                        <div class="form-check border rounded p-2 h-100 ${hasOffer ? 'border-success' : ''}">
+                            <input class="form-check-input service-checkbox" type="checkbox" value="${service.id}" id="service_${service.id}" data-duration="${service.duration_mins ?? service.duration}" data-price="${displayPrice}" data-original-price="${originalPrice}" data-type="${service.service_type || 'in-center'}" ${hasOffer ? `data-offer-id="${service.applied_offer.id}"` : ''}>
+                            <label class="form-check-label w-100" for="service_${service.id}">
+                                <strong>${service.name}</strong> 
+                                ${hasOffer ? `
+                                    <span class="text-success">- ₹${parseFloat(displayPrice).toFixed(2)}</span>
+                                    <span class="text-decoration-line-through text-muted ms-1">₹${parseFloat(originalPrice).toFixed(2)}</span>
+                                    <br><small class="text-success">${service.applied_offer.title}</small>
+                                ` : `
+                                    <span class="text-muted">- ₹${parseFloat(displayPrice).toFixed(2)}</span>
+                                `}
+                                <br>
+                                <small>Duration: ${service.duration_mins ?? service.duration} mins | Type: ${service.service_type || 'in-center'}</small>
+                            </label>
+                        </div>
+                    `;
+                    servicesGrid.appendChild(col);
+                }
             });
         }
     } catch (error) {
@@ -182,6 +225,110 @@ async function loadStaff() {
     }
 }
 
+async function loadAvailableSlots(serviceIds, date) {
+    const timeSlotsSection = document.getElementById('timeSlotsSection');
+    const timeSlotsGrid = document.getElementById('timeSlotsGrid');
+    
+    try {
+        timeSlotsGrid.innerHTML = '<div class="col-12"><div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading slots...</span></div></div></div>';
+        timeSlotsSection.style.display = 'block';
+        
+        const response = await fetch(`/api/slots?service_ids=${serviceIds}&date=${date}`);
+        const slots = await response.json();
+        
+        if (!response.ok) {
+            timeSlotsGrid.innerHTML = `<div class="col-12"><div class="alert alert-warning">${slots.message || 'Failed to load slots'}</div></div>`;
+            return;
+        }
+        
+        if (!slots || slots.length === 0) {
+            timeSlotsGrid.innerHTML = '<div class="col-12"><div class="alert alert-info">No available slots for this date and service combination. Please select a different date or different services.</div></div>';
+            return;
+        }
+        
+        console.log('Processing', slots.length, 'slots');
+        const slotsByHour = {};
+        slots.forEach(slot => {
+            const startTime = new Date(slot.start);
+            const hour = startTime.getHours();
+            if (!slotsByHour[hour]) {
+                slotsByHour[hour] = [];
+            }
+            slotsByHour[hour].push(slot);
+        });
+        
+        let html = '';
+        Object.keys(slotsByHour).sort().forEach(hour => {
+            html += `<div class="col-12 mb-2"><h6 class="text-muted">${hour}:00 - ${parseInt(hour) + 1}:00</h6></div>`;
+            slotsByHour[hour].forEach(slot => {
+                const startTime = new Date(slot.start);
+                const endTime = new Date(slot.end);
+                const timeString = startTime.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    hour12: true 
+                });
+                const endTimeString = endTime.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    hour12: true 
+                });
+                
+                html += `
+                    <div class="col-md-3 col-sm-4 col-6 mb-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100 time-slot-btn" 
+                                data-start="${slot.start}" data-end="${slot.end}" data-staff="${slot.available_staff.join(',')}"
+                                style="cursor: pointer !important;">
+                            ${timeString}
+                        </button>
+                    </div>
+                `;
+            });
+        });
+        
+        timeSlotsGrid.innerHTML = html;
+        console.log('Slots HTML set');
+        
+        // Add click handlers directly to each button
+        console.log('Attaching click handlers to slot buttons...');
+        const slotButtons = timeSlotsGrid.querySelectorAll('.time-slot-btn');
+        console.log('Found', slotButtons.length, 'slot buttons');
+        
+        slotButtons.forEach(btn => {
+            btn.disabled = false; // Ensure button is enabled
+            btn.addEventListener('click', function() {
+                console.log('Slot button clicked:', this.textContent);
+                
+                // Remove selected class from all buttons
+                timeSlotsGrid.querySelectorAll('.time-slot-btn').forEach(b => {
+                    b.classList.remove('btn-primary', 'selected');
+                    b.classList.add('btn-outline-primary');
+                    b.disabled = false;
+                });
+                
+                // Add selected class to clicked button
+                this.classList.remove('btn-outline-primary');
+                this.classList.add('btn-primary', 'selected');
+                this.disabled = true; // Disable the button to prevent double-clicking
+                
+                // Store selected slot data
+                this.dataset.selected = 'true';
+                
+                // Hide time slot error if shown
+                const timeSlotError = document.getElementById('timeSlotError');
+                if (timeSlotError) {
+                    timeSlotError.style.display = 'none';
+                }
+                console.log('Slot selected:', this.textContent);
+            });
+        });
+        
+    } catch (error) {
+        console.error('Error loading slots:', error);
+        timeSlotsGrid.innerHTML = '<div class="col-12"><div class="alert alert-danger">Failed to load available slots. Please try again.</div></div>';
+    }
+}
+
 function setupFormHandlers() {
     const serviceSelect = document.getElementById('service_id');
     const locSelect = document.getElementById('service_location');
@@ -189,26 +336,65 @@ function setupFormHandlers() {
     const bookingForm = document.getElementById('bookingForm');
     
     // Service selection change
-    serviceSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
+    document.getElementById('servicesGrid').addEventListener('change', function() {
+        const checked = Array.from(document.querySelectorAll('.service-checkbox:checked'));
         const serviceDetails = document.getElementById('serviceDetails');
-        
-        if (this.value) {
-            document.getElementById('serviceDuration').textContent = selectedOption.dataset.duration;
-            document.getElementById('servicePrice').textContent = selectedOption.dataset.price;
+        const homeChargeRow = document.getElementById('homeChargeRow');
+        const homeChargeVal = 350;
+        if (checked.length > 0) {
+            let maxDuration = 0;
+            let totalPrice = 0;
+            let homeType = false;
+            checked.forEach(opt => {
+                const dur = parseInt(opt.dataset.duration) || 0;
+                const price = parseFloat(opt.dataset.price) || 0;
+                maxDuration = Math.max(maxDuration, dur);
+                totalPrice += price;
+                if (opt.dataset.type === 'home') homeType = true;
+            });
+            document.getElementById('serviceDuration').textContent = maxDuration;
+            document.getElementById('servicePrice').textContent = totalPrice;
+            let totalPayable = totalPrice;
+            if (homeType) {
+                locSelect.value = 'home';
+                homeFields.classList.remove('d-none');
+                homeChargeRow.style.display = '';
+                totalPayable += homeChargeVal;
+            } else {
+                locSelect.value = 'in-center';
+                homeFields.classList.add('d-none');
+                homeChargeRow.style.display = 'none';
+            }
+            document.getElementById('totalPayable').textContent = totalPayable;
             serviceDetails.classList.remove('d-none');
-            // auto-set location based on service type if provided
-            if (selectedOption.dataset.type) {
-                locSelect.value = selectedOption.dataset.type;
-                // show/hide address fields
-                if (selectedOption.dataset.type === 'home') {
-                    homeFields.classList.remove('d-none');
-                } else {
-                    homeFields.classList.add('d-none');
-                }
+            
+            // Load available slots if date is selected
+            const selectedDate = document.getElementById('appointment_date').value;
+            if (selectedDate && checked.length > 0) {
+                const serviceIds = checked.map(opt => opt.value).join(',');
+                loadAvailableSlots(serviceIds, selectedDate);
+            } else if (checked.length > 0) {
+                // Show message to select date
+                document.getElementById('timeSlotsSection').style.display = 'block';
+                document.getElementById('timeSlotsGrid').innerHTML = '<div class="col-12"><div class="alert alert-info">Please select a date to view available time slots.</div></div>';
             }
         } else {
             serviceDetails.classList.add('d-none');
+            document.getElementById('timeSlotsSection').style.display = 'none';
+        }
+    });
+    
+    // Date change - load slots if service is selected
+    document.getElementById('appointment_date').addEventListener('change', function() {
+        const selectedDate = this.value;
+        const checked = Array.from(document.querySelectorAll('.service-checkbox:checked'));
+        if (selectedDate && checked.length > 0) {
+            const serviceIds = checked.map(opt => opt.value).join(',');
+            loadAvailableSlots(serviceIds, selectedDate);
+        } else if (selectedDate) {
+            // Show message to select services
+            document.getElementById('timeSlotsSection').style.display = 'block';
+            document.getElementById('timeSlotsGrid').innerHTML = '<div class="col-12"><div class="alert alert-info">Please select services to view available time slots.</div></div>';
         }
     });
 
@@ -232,19 +418,64 @@ function setupFormHandlers() {
 }
 
 async function submitBooking() {
+    console.log('submitBooking called');
     const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
     const bookBtn = document.getElementById('bookBtn');
     const bookBtnText = document.getElementById('bookBtnText');
     const bookSpinner = document.getElementById('bookSpinner');
     
     // Get form data
-    const selectedLocation = document.getElementById('service_location').value;
+    const serviceLocationElement = document.getElementById('service_location');
+    const selectedLocation = serviceLocationElement ? serviceLocationElement.value : 'in-center';
+    console.log('selectedLocation:', selectedLocation);
+    // Collect all checked service IDs as an array
+    const checkedServices = Array.from(document.querySelectorAll('.service-checkbox:checked'));
+    const service_ids = checkedServices.map(opt => parseInt(opt.value));
+    console.log('service_ids:', service_ids);
+    
+    // Calculate home charge if home service is selected
+    let home_charge = 0; // Default value
+    try {
+        home_charge = selectedLocation === 'home' ? 350 : 0;
+    } catch (error) {
+        console.error('Error calculating home_charge:', error);
+    }
+    console.log('home_charge calculated:', home_charge);
+    
+    // Validate time slot selection
+    const selectedSlot = document.querySelector('.time-slot-btn.selected');
+    const timeSlotError = document.getElementById('timeSlotError');
+    if (!selectedSlot) {
+        timeSlotError.style.display = '';
+        return;
+    } else {
+        timeSlotError.style.display = 'none';
+    }
+    
+    // Get slot timing
+    const slotStart = new Date(selectedSlot.dataset.start);
+    const date = slotStart.toISOString().split('T')[0];
+    const time = slotStart.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
+    
+    console.log('Selected slot data:', {
+        dataset: selectedSlot.dataset,
+        slotStart: slotStart,
+        date: date,
+        time: time
+    });
+    
     const formData = {
-        service_id: parseInt(document.getElementById('service_id').value),
-        date: document.getElementById('appointment_date').value,
-        time: document.getElementById('appointment_time').value,
+        service_ids: service_ids,
+        date: date,
+        time: time,
         notes: document.getElementById('notes').value.trim()
     };
+    if (home_charge > 0) {
+        formData.home_charge = home_charge;
+    }
+    if (selectedOfferId) {
+        formData.offer_id = parseInt(selectedOfferId);
+    }
 
     const staffId = document.getElementById('staff_id').value;
     if (staffId) {
@@ -283,7 +514,19 @@ async function submitBooking() {
                 window.location.href = window.APP_CONFIG.URLS.customerDashboard;
             }, 2000);
         } else {
-            showMessage(data.message || 'Failed to book appointment. Please try again.', 'error');
+            // Handle specific error cases
+            if (response.status === 409 || data.message.includes('no longer available')) {
+                showMessage('Sorry, this time slot is no longer available. Please select a different time.', 'error');
+                // Reload available slots
+                const selectedDate = document.getElementById('appointment_date').value;
+                const checked = Array.from(document.querySelectorAll('.service-checkbox:checked'));
+                if (selectedDate && checked.length > 0) {
+                    const serviceIds = checked.map(opt => opt.value).join(',');
+                    loadAvailableSlots(serviceIds, selectedDate);
+                }
+            } else {
+                showMessage(data.message || 'Failed to book appointment. Please try again.', 'error');
+            }
             resetButton();
         }
     } catch (error) {

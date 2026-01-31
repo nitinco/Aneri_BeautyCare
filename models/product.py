@@ -18,6 +18,7 @@ class Product(db.Model):
     sku = db.Column(db.String(120))
     price = db.Column(db.Numeric(10, 2), default=0.00)
     is_active = db.Column(db.Boolean, default=True)
+    image = db.Column(db.String(255), nullable=True)  # Path to product image
 
     brand = db.relationship('Brand', backref=db.backref('products', lazy=True))
     details = db.relationship('ProductDetail', backref='product', lazy=True)
@@ -30,7 +31,8 @@ class Product(db.Model):
             'brand_id': self.brand_id,
             'sku': self.sku,
             'price': float(self.price),
-            'is_active': self.is_active
+            'is_active': self.is_active,
+            'image': self.image
         }
 
 

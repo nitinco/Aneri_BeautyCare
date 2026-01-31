@@ -14,6 +14,7 @@ class Staff(db.Model):
         return {
             'id': self.id,
             'user_id': self.user_id,
+            'name': self.user.name if self.user else None,
             'phone': self.phone,
             'is_active': self.is_active,
             'is_available': self.is_available

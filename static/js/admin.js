@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (document.getElementById('offersTableBody')) await loadOffersPage();
     if (document.getElementById('productsTableBody')) await loadProductsPage();
     if (document.getElementById('billsTableBody')) await loadBillsPage();
+    if (document.getElementById('packageBookingsTableBody')) await loadPackageBookingsPage();
     if (document.getElementById('complaintsTableBody')) await loadComplaintsPage();
     if (document.getElementById('deliveryOrdersBody')) await loadDeliveryPage();
     if (document.getElementById('ordersTableBody')) await loadOrdersPage();
@@ -27,11 +28,23 @@ async function loadOffersPage() {
         const tbody = document.getElementById('offersTableBody');
         tbody.innerHTML = '';
         offers.forEach(o => {
+            let offerType = 'General';
+            let appliesTo = 'All items';
+            
+            if (o.product_name) {
+                offerType = 'Product';
+                appliesTo = o.product_name;
+            } else if (o.service_name) {
+                offerType = 'Service';
+                appliesTo = o.service_name;
+            }
+            
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${o.id}</td>
                 <td>${o.title}</td>
-                <td>${o.description || ''}</td>
+                <td>${offerType}</td>
+                <td>${appliesTo}</td>
                 <td>${o.discount_percent || 0}%</td>
                 <td>${o.is_active ? 'Active' : 'Inactive'}</td>
                 <td>
@@ -113,26 +126,34 @@ async function loadProductsPage() {
 window._editingProductId = null;
 
 function openEditProduct(id) {
-    // find product from loaded table or fetch single product list
-    const rows = document.querySelectorAll('#productsTableBody tr');
-    let found = null;
-    rows.forEach(r => {
-        const cell = r.querySelector('td');
-        if (cell && Number(cell.textContent) === Number(id)) {
-            const cols = r.querySelectorAll('td');
-            found = { id: id, name: cols[1].textContent, brand_id: cols[2].textContent || '', sku: cols[3].textContent || '', price: cols[4].textContent || 0 };
-        }
-    });
-    // populate modal
-    if (found) {
-        window._editingProductId = id;
-        document.getElementById('productName').value = found.name || '';
-        document.getElementById('productBrand').value = found.brand_id || '';
-        document.getElementById('productSKU').value = found.sku || '';
-        document.getElementById('productPrice').value = parseFloat(found.price) || 0;
-        var modal = new bootstrap.Modal(document.getElementById('productModal'));
-        modal.show();
-    }
+    // Fetch full product details for editing
+    fetch(`/api/products/${id}`)
+        .then(res => res.json())
+        .then(product => {
+            window._editingProductId = id;
+            document.getElementById('productName').value = product.name || '';
+            document.getElementById('productBrand').value = product.brand_id || '';
+            document.getElementById('productSKU').value = product.sku || '';
+            document.getElementById('productPrice').value = parseFloat(product.price) || 0;
+            document.getElementById('productImage').value = '';
+            
+            // Show current image if exists
+            const currentImageContainer = document.getElementById('currentProductImageContainer');
+            const currentImage = document.getElementById('currentProductImage');
+            if (product.image) {
+                currentImage.src = `/static/${product.image}`;
+                currentImageContainer.style.display = 'block';
+            } else {
+                currentImageContainer.style.display = 'none';
+            }
+            
+            var modal = new bootstrap.Modal(document.getElementById('productModal'));
+            modal.show();
+        })
+        .catch(err => {
+            console.error('Failed to fetch product details', err);
+            Toast.error('Failed to load product details');
+        });
 }
 
 async function saveProductFromModal() {
@@ -140,28 +161,45 @@ async function saveProductFromModal() {
     window._savingProduct = true;
     document.getElementById('saveProductBtn')?.setAttribute('disabled', 'disabled');
 
-    const name = document.getElementById('productName').value.trim();
-    const brand_id = document.getElementById('productBrand').value || null;
-    const sku = document.getElementById('productSKU').value.trim();
-    const price = parseFloat(document.getElementById('productPrice').value) || 0;
-    if(!name){ Toast.error('Name required'); return; }
-    try{
+    const formData = new FormData();
+    formData.append('name', document.getElementById('productName').value.trim());
+    formData.append('brand_id', document.getElementById('productBrand').value || null);
+    formData.append('sku', document.getElementById('productSKU').value.trim());
+    formData.append('price', parseFloat(document.getElementById('productPrice').value) || 0);
+    
+    const imageFile = document.getElementById('productImage').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    if (!formData.get('name')) { 
+        Toast.error('Name required'); 
+        window._savingProduct = false;
+        document.getElementById('saveProductBtn')?.removeAttribute('disabled');
+        return; 
+    }
+
+    try {
         LoadingOverlay.show('Saving product...');
         if (window._editingProductId) {
-            await apiClient.updateProduct(window._editingProductId, { name, brand_id, sku, price });
+            await apiClient.updateProduct(window._editingProductId, formData);
             Toast.success('Product updated');
             window._editingProductId = null;
         } else {
-            await apiClient.createProduct({ name, brand_id, sku, price });
+            await apiClient.createProduct(formData);
             Toast.success('Product created');
         }
         var modal = bootstrap.Modal.getInstance(document.getElementById('productModal')) || new bootstrap.Modal(document.getElementById('productModal'));
         modal.hide();
         loadProductsPage();
-    } catch(e){ console.error(e); Toast.error('Failed to save product'); }
-    finally{ LoadingOverlay.hide(); }
-    window._savingProduct = false;
-    document.getElementById('saveProductBtn')?.removeAttribute('disabled');
+    } catch (e) {
+        console.error(e);
+        Toast.error('Failed to save product');
+    } finally {
+        LoadingOverlay.hide();
+        window._savingProduct = false;
+        document.getElementById('saveProductBtn')?.removeAttribute('disabled');
+    }
 }
 
 async function deleteProduct(id) {
@@ -182,21 +220,70 @@ async function deleteProduct(id) {
 async function loadBillsPage() {
     try {
         LoadingOverlay.show('Loading bills...');
-        const bills = await apiClient.listBills();
         const tbody = document.getElementById('billsTableBody');
         tbody.innerHTML = '';
-        bills.forEach(b => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${b.id}</td>
-                <td>${b.customer_id}</td>
-                <td>${b.created_at}</td>
-                <td>₹${parseFloat(b.total_amount).toFixed(2)}</td>
-                <td>${b.status}</td>
-                <td><a class="btn btn-sm btn-outline-primary" href="${apiClient.getBillPDF(b.id)}" target="_blank">Download PDF</a></td>
+
+        // Load regular bills
+        try {
+            const bills = await apiClient.listBills();
+            bills.forEach(b => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${b.id}</td>
+                    <td><span class="badge bg-primary">Bill</span></td>
+                    <td>${b.customer_id}</td>
+                    <td>${b.created_at}</td>
+                    <td>₹${parseFloat(b.total_amount).toFixed(2)}</td>
+                    <td><span class="badge bg-success">Paid</span></td>
+                    <td><a class="btn btn-sm btn-outline-primary" href="${apiClient.getBillPDF(b.id)}" target="_blank">Download PDF</a></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            console.warn('Failed to load regular bills:', e);
+        }
+
+        // Load package booking bills
+        try {
+            const packageBookings = await apiClient.get('/api/package/admin/bookings');
+            const bookings = Array.isArray(packageBookings) ? packageBookings : (packageBookings.bookings || []);
+
+            bookings.forEach(b => {
+                const paymentStatus = b.razorpay_payment_id ? 'Paid' : 'Pending';
+                const statusBadge = paymentStatus === 'Paid' ? 'bg-success' : 'bg-warning text-dark';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${b.id}</td>
+                    <td><span class="badge bg-info">Package Booking</span></td>
+                    <td>${b.customer_name || b.customer_id || 'N/A'}</td>
+                    <td>${b.created_at ? new Date(b.created_at).toLocaleDateString() : 'N/A'}</td>
+                    <td>₹${parseFloat(b.total_amount || 0).toFixed(2)}</td>
+                    <td><span class="badge ${statusBadge}">${paymentStatus}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-info me-1" onclick="viewPackageBookingDetails(${b.id})">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                        ${!b.razorpay_payment_id ? '<span class="text-muted small">No PDF</span>' : '<span class="text-success small">✓ Paid</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            console.warn('Failed to load package booking bills:', e);
+        }
+
+        // Show message if no bills found
+        if (tbody.children.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="bi bi-receipt" style="font-size: 2rem;"></i>
+                        <p class="mt-2 mb-0">No bills found</p>
+                    </td>
+                </tr>
             `;
-            tbody.appendChild(tr);
-        });
+        }
+
     } catch (err) {
         console.error(err);
         Toast.error('Failed to load bills');
@@ -879,3 +966,248 @@ async function deleteSupplier(id) {
         LoadingOverlay.hide();
     }
 }
+
+// Service management functions
+window._editingServiceId = null;
+
+async function loadServicesPage() {
+    try {
+        LoadingOverlay.show('Loading services...');
+        const resp = await apiClient.getServices();
+        const services = Array.isArray(resp) ? resp : resp.services || [];
+        const tbody = document.getElementById('servicesTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        services.forEach(s => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${s.id}</td>
+                <td>${s.name}</td>
+                <td>${s.price}</td>
+                <td>${s.duration_mins} mins</td>
+                <td>${s.service_type}</td>
+                <td>
+                    ${s.image ? `<img src="/static/${s.image}" alt="${s.name}" style="max-width: 50px; max-height: 50px;" class="img-thumbnail">` : 'No image'}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-primary me-2" onclick="openEditService(${s.id})">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteService(${s.id})">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error('loadServicesPage error', err);
+        Toast.error('Failed to load services');
+    } finally {
+        LoadingOverlay.hide();
+    }
+}
+
+function openAddServiceModal() {
+    window._editingServiceId = null;
+    document.getElementById('serviceName').value = '';
+    document.getElementById('description').value = '';
+    document.getElementById('price').value = 0;
+    document.getElementById('duration').value = 30;
+    document.getElementById('categoryId').value = '';
+    document.getElementById('serviceType').value = 'in-center';
+    document.getElementById('serviceImage').value = '';
+    var modal = new bootstrap.Modal(document.getElementById('addServiceModal'));
+    modal.show();
+}
+
+function openEditService(id) {
+    const rows = document.querySelectorAll('#servicesTableBody tr');
+    let found = null;
+    rows.forEach(r => {
+        const cols = r.querySelectorAll('td');
+        if (cols && Number(cols[0].textContent) === Number(id)) {
+            found = { 
+                id: id, 
+                name: cols[1].textContent, 
+                price: cols[2].textContent.replace('₹', ''), 
+                duration: cols[3].textContent.replace(' mins', ''),
+                type: cols[4].textContent
+            };
+        }
+    });
+    
+    // Fetch full service details for editing
+    if (found) {
+        fetch(`/api/services/${id}`)
+            .then(res => res.json())
+            .then(service => {
+                window._editingServiceId = id;
+                document.getElementById('editServiceName').value = service.name || '';
+                document.getElementById('editDescription').value = service.description || '';
+                document.getElementById('editPrice').value = parseFloat(service.price) || 0;
+                document.getElementById('editDuration').value = service.duration_mins || 30;
+                document.getElementById('editCategoryId').value = service.category_id || '';
+                document.getElementById('editServiceType').value = service.service_type || 'in-center';
+                document.getElementById('editServiceImage').value = '';
+                
+                // Show current image if exists
+                const currentImageContainer = document.getElementById('currentImageContainer');
+                const currentImage = document.getElementById('currentServiceImage');
+                if (service.image) {
+                    currentImage.src = `/static/${service.image}`;
+                    currentImageContainer.style.display = 'block';
+                } else {
+                    currentImageContainer.style.display = 'none';
+                }
+                
+                var modal = new bootstrap.Modal(document.getElementById('editServiceModal'));
+                modal.show();
+            })
+            .catch(err => {
+                console.error('Failed to fetch service details', err);
+                Toast.error('Failed to load service details');
+            });
+    }
+}
+
+async function saveServiceFromModal() {
+    if (window._savingService) return;
+    window._savingService = true;
+    document.getElementById('saveServiceBtn')?.setAttribute('disabled', 'disabled');
+
+    const formData = new FormData();
+    formData.append('name', document.getElementById('serviceName').value.trim());
+    formData.append('description', document.getElementById('description').value);
+    formData.append('price', document.getElementById('price').value);
+    formData.append('duration_mins', document.getElementById('duration').value);
+    formData.append('category_id', document.getElementById('categoryId').value || null);
+    formData.append('service_type', document.getElementById('serviceType').value);
+    
+    const imageFile = document.getElementById('serviceImage').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    if (!formData.get('name')) { 
+        Toast.error('Name required'); 
+        window._savingService = false;
+        document.getElementById('saveServiceBtn')?.removeAttribute('disabled');
+        return; 
+    }
+
+    try {
+        LoadingOverlay.show('Saving service...');
+        await apiClient.createService(formData);
+        Toast.success('Service created');
+        var modal = bootstrap.Modal.getInstance(document.getElementById('addServiceModal')) || new bootstrap.Modal(document.getElementById('addServiceModal'));
+        modal.hide();
+        loadServicesPage();
+    } catch (err) {
+        console.error('saveServiceFromModal error', err);
+        Toast.error(err.message || 'Failed to save service');
+    } finally {
+        LoadingOverlay.hide();
+        window._savingService = false;
+        document.getElementById('saveServiceBtn')?.removeAttribute('disabled');
+    }
+}
+
+async function updateServiceFromModal() {
+    if (window._updatingService) return;
+    window._updatingService = true;
+    document.getElementById('updateServiceBtn')?.setAttribute('disabled', 'disabled');
+
+    const formData = new FormData();
+    formData.append('name', document.getElementById('editServiceName').value.trim());
+    formData.append('description', document.getElementById('editDescription').value);
+    formData.append('price', document.getElementById('editPrice').value);
+    formData.append('duration_mins', document.getElementById('editDuration').value);
+    formData.append('category_id', document.getElementById('editCategoryId').value || null);
+    formData.append('service_type', document.getElementById('editServiceType').value);
+    
+    const imageFile = document.getElementById('editServiceImage').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    if (!formData.get('name')) { 
+        Toast.error('Name required'); 
+        window._updatingService = false;
+        document.getElementById('updateServiceBtn')?.removeAttribute('disabled');
+        return; 
+    }
+
+    try {
+        LoadingOverlay.show('Updating service...');
+        await apiClient.updateService(window._editingServiceId, formData);
+        Toast.success('Service updated');
+        window._editingServiceId = null;
+        var modal = bootstrap.Modal.getInstance(document.getElementById('editServiceModal')) || new bootstrap.Modal(document.getElementById('editServiceModal'));
+        modal.hide();
+        loadServicesPage();
+    } catch (err) {
+        console.error('updateServiceFromModal error', err);
+        Toast.error(err.message || 'Failed to update service');
+    } finally {
+        LoadingOverlay.hide();
+        window._updatingService = false;
+        document.getElementById('updateServiceBtn')?.removeAttribute('disabled');
+    }
+}
+
+// Package booking details function for admin bills page
+async function viewPackageBookingDetails(bookingId) {
+    try {
+        const response = await apiClient.get(`/api/package/admin/bookings/${bookingId}`);
+        const booking = response;
+
+        let details = `Package Booking Details:\n\n`;
+        details += `ID: ${booking.id}\n`;
+        details += `Customer: ${booking.customer_name || 'N/A'}\n`;
+        details += `Package: ${booking.package_name || 'N/A'}\n`;
+        details += `Status: ${booking.status}\n`;
+        details += `Service Type: ${booking.service_type || 'N/A'}\n`;
+        details += `Total Amount: ₹${parseFloat(booking.total_amount || 0).toFixed(2)}\n`;
+        details += `Payment Status: ${booking.razorpay_payment_id ? 'Paid' : 'Pending'}\n`;
+
+        if (booking.start_datetime) {
+            details += `Start Date/Time: ${new Date(booking.start_datetime).toLocaleString()}\n`;
+        }
+        if (booking.end_datetime) {
+            details += `End Date/Time: ${new Date(booking.end_datetime).toLocaleString()}\n`;
+        }
+        if (booking.address) {
+            details += `Address: ${booking.address}\n`;
+        }
+        if (booking.pincode) {
+            details += `Pincode: ${booking.pincode}\n`;
+        }
+        if (booking.notes) {
+            details += `Notes: ${booking.notes}\n`;
+        }
+
+        alert(details);
+    } catch (error) {
+        console.error('Error loading booking details:', error);
+        alert('Failed to load booking details');
+    }
+}
+
+// Update the initial load to include services
+document.addEventListener('DOMContentLoaded', async function() {
+    if (!window.apiClient) return;
+
+    if (document.getElementById('offersTableBody')) await loadOffersPage();
+    if (document.getElementById('productsTableBody')) await loadProductsPage();
+    if (document.getElementById('billsTableBody')) await loadBillsPage();
+    if (document.getElementById('packageBookingsTableBody')) await loadPackageBookingsPage();
+    if (document.getElementById('complaintsTableBody')) await loadComplaintsPage();
+    if (document.getElementById('deliveryOrdersBody')) await loadDeliveryPage();
+    if (document.getElementById('ordersTableBody')) await loadOrdersPage();
+    if (document.getElementById('customersTableBody')) await loadCustomersPage();
+    if (document.getElementById('usersTableBody')) await loadUsersPage();
+    if (document.getElementById('staffTableBody')) await loadStaffPage();
+    if (document.getElementById('brandsTableBody')) await loadBrandsPage();
+    if (document.getElementById('appointmentsTableBody')) await loadAppointmentsPage();
+    if (document.getElementById('stockTableBody')) await loadStockPage();
+    if (document.getElementById('suppliersTableBody')) await loadSuppliersPage();
+    if (document.getElementById('servicesTableBody')) await loadServicesPage();
+    if (document.getElementById('stockTableBody')) await populateStockSelects();
+});

@@ -29,6 +29,16 @@ def services():
     return render_template('services.html')
 
 
+@main_bp.route('/packages')
+def packages():
+    return render_template('packages.html')
+
+
+@main_bp.route('/book-package')
+def book_package():
+    return render_template('book_package.html')
+
+
 # Customer Routes
 @main_bp.route('/customer/dashboard')
 def customer_dashboard():
@@ -79,6 +89,16 @@ def admin_dashboard():
 @main_bp.route('/admin/services')
 def admin_services():
     return render_template('admin_services.html')
+
+
+@main_bp.route('/admin/packages')
+def admin_packages():
+    return render_template('admin_packages.html')
+
+
+@main_bp.route('/admin/package-bookings')
+def admin_package_bookings():
+    return render_template('admin_package_bookings.html')
 
 
 @main_bp.route('/admin/customers')

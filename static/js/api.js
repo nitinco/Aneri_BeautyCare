@@ -4,16 +4,29 @@
  */
 
 class APIClient {
+        // Home service bookings for current user
+        async getMyBookings() {
+            const data = await this.get('/api/my/bookings');
+            return Array.isArray(data) ? data : (data.bookings || data);
+        }
+
+        // Package bookings for current user
+        async getMyPackageBookings() {
+            const data = await this.get('/api/package/bookings');
+            return Array.isArray(data) ? data : (data.bookings || data);
+        }
     constructor() {
         this.baseURL = window.APP_CONFIG.API_BASE_URL;
         this.tokenKey = window.APP_CONFIG.TOKEN_KEY;
     }
     
     // Get authorization headers
-    getHeaders(includeAuth = true) {
-        const headers = {
-            'Content-Type': 'application/json'
-        };
+    getHeaders(includeAuth = true, includeContentType = true) {
+        const headers = {};
+        
+        if (includeContentType) {
+            headers['Content-Type'] = 'application/json';
+        }
         
         if (includeAuth) {
             const token = localStorage.getItem(this.tokenKey);
@@ -27,8 +40,14 @@ class APIClient {
     
     // Handle API response
     async handleResponse(response) {
-        const data = await response.json();
-        
+        let data;
+        let isJson = true;
+        try {
+            data = await response.json();
+        } catch (e) {
+            isJson = false;
+        }
+
         if (!response.ok) {
             // Handle unauthorized errors
             if (response.status === 401) {
@@ -38,10 +57,16 @@ class APIClient {
                     window.location.href = window.APP_CONFIG.URLS.login;
                 }
             }
-            
-            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+            if (!isJson) {
+                // HTML error page or other non-JSON error
+                throw new Error('Server error: ' + response.status + ' (non-JSON response)');
+            }
+            throw new Error((data && data.message) || `HTTP error! status: ${response.status}`);
         }
-        
+
+        if (!isJson) {
+            throw new Error('Server returned non-JSON response');
+        }
         return data;
     }
     
@@ -63,10 +88,11 @@ class APIClient {
     // POST request
     async post(endpoint, data, includeAuth = true) {
         try {
+            const isFormData = data instanceof FormData;
             const response = await fetch(`${this.baseURL}${endpoint}`, {
                 method: 'POST',
-                headers: this.getHeaders(includeAuth),
-                body: JSON.stringify(data)
+                headers: isFormData ? this.getHeaders(includeAuth, false) : this.getHeaders(includeAuth),
+                body: isFormData ? data : JSON.stringify(data)
             });
             
             return await this.handleResponse(response);
@@ -79,10 +105,11 @@ class APIClient {
     // PUT request
     async put(endpoint, data, includeAuth = true) {
         try {
+            const isFormData = data instanceof FormData;
             const response = await fetch(`${this.baseURL}${endpoint}`, {
                 method: 'PUT',
-                headers: this.getHeaders(includeAuth),
-                body: JSON.stringify(data)
+                headers: isFormData ? this.getHeaders(includeAuth, false) : this.getHeaders(includeAuth),
+                body: isFormData ? data : JSON.stringify(data)
             });
             
             return await this.handleResponse(response);
@@ -136,10 +163,14 @@ class APIClient {
     }
     
     async createService(serviceData) {
-        // Map to backend field names
+        // If FormData, use it directly; otherwise map to backend field names
+        if (serviceData instanceof FormData) {
+            return await this.post('/api/services', serviceData);
+        }
+        
         const payload = {
             name: serviceData.name,
-            category_id: serviceData.category_id,
+            subcategory_id: serviceData.subcategory_id,
             duration_mins: serviceData.duration_mins ?? serviceData.duration, // support both
             price: serviceData.price,
             description: serviceData.description ?? null,
@@ -149,9 +180,14 @@ class APIClient {
     }
     
     async updateService(id, serviceData) {
+        // If FormData, use it directly; otherwise map to backend field names
+        if (serviceData instanceof FormData) {
+            return await this.put(`/api/services/${id}`, serviceData);
+        }
+        
         const payload = {
             name: serviceData.name,
-            category_id: serviceData.category_id,
+            subcategory_id: serviceData.subcategory_id,
             duration_mins: serviceData.duration_mins ?? serviceData.duration,
             price: serviceData.price,
             description: serviceData.description ?? null,
@@ -181,6 +217,23 @@ class APIClient {
         return await this.delete(`/api/categories/${id}`);
     }
     
+    // Subcategories endpoints
+    async getSubcategories() {
+        const data = await this.get('/api/subcategories', false);
+        return Array.isArray(data) ? { subcategories: data } : data;
+    }
+    
+    async createSubcategory(subcategoryData) {
+        return await this.post('/api/subcategories', subcategoryData);
+    }
+    async updateSubcategory(id, subcategoryData) {
+        return await this.put(`/api/subcategories/${id}`, subcategoryData);
+    }
+
+    async deleteSubcategory(id) {
+        return await this.delete(`/api/subcategories/${id}`);
+    }
+    
     // Packages endpoints
     async getPackages() {
         return await this.get('/api/packages', false);
@@ -189,6 +242,10 @@ class APIClient {
     // Appointments endpoints
     async createAppointment(appointmentData) {
         return await this.post('/api/appointments', appointmentData);
+    }
+    
+    async getAvailableSlots(serviceIds, date) {
+        return await this.get(`/api/slots?service_ids=${serviceIds}&date=${date}`, false);
     }
     
     // Bookings endpoints
@@ -279,10 +336,18 @@ class APIClient {
     }
     
     async createProduct(productData) {
+        // If FormData, use it directly; otherwise use as is
+        if (productData instanceof FormData) {
+            return await this.post('/products', productData);
+        }
         return await this.post('/products', productData);
     }
 
     async updateProduct(id, productData) {
+        // If FormData, use it directly; otherwise use as is
+        if (productData instanceof FormData) {
+            return await this.put(`/products/${id}`, productData);
+        }
         return await this.put(`/products/${id}`, productData);
     }
 
@@ -358,8 +423,28 @@ class APIClient {
         return await this.post('/deliveries', deliveryData);
     }
 
+
     async createRazorpayOrder(orderId) {
         return await this.post('/payments/razorpay/create_order', { order_id: orderId });
+    }
+
+    /**
+     * Create a Razorpay order from a given amount (for cart checkout before backend order is created)
+     * @param {number} amount - The total amount (in INR, float)
+     * @returns {Promise<object>} Razorpay order response
+     */
+    async createRazorpayOrderFromAmount(amount) {
+        // Backend endpoint should accept { amount } and return Razorpay order object
+        // Defensive: handle non-JSON error responses gracefully
+        try {
+            return await this.post('/payments/razorpay/create_order_from_amount', { amount });
+        } catch (err) {
+            // If error is 404 or non-JSON, show a clear message
+            if (err.message && err.message.includes('404')) {
+                throw new Error('Razorpay order endpoint not found. Please contact support.');
+            }
+            throw err;
+        }
     }
 
     async verifyRazorpayPayment(payload) {

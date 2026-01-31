@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+
+{% block title %}Book Package - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section class="page-header bg-gradient-primary text-white py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12 text-center">
+                <h1 class="display-4 fw-bold">Book Package</h1>
+                <p class="lead">Complete your package booking with ease</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Booking Form -->
+<section class="booking-section py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0" id="packageTitle">Loading package details...</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Package Details -->
+                        <div id="packageDetails" class="mb-4">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Booking Form -->
+                        <form id="bookingForm">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="startDate" class="form-label">Preferred Date *</label>
+                                    <input type="date" class="form-control" id="startDate" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="startTime" class="form-label">Preferred Time *</label>
+                                    <select class="form-select" id="startTime" required>
+                                        <option value="">Select time</option>
+                                        <option value="09:00">9:00 AM</option>
+                                        <option value="10:00">10:00 AM</option>
+                                        <option value="11:00">11:00 AM</option>
+                                        <option value="12:00">12:00 PM</option>
+                                        <option value="13:00">1:00 PM</option>
+                                        <option value="14:00">2:00 PM</option>
+                                        <option value="15:00">3:00 PM</option>
+                                        <option value="16:00">4:00 PM</option>
+                                        <option value="17:00">5:00 PM</option>
+                                        <option value="18:00">6:00 PM</option>
+                                        <option value="19:00">7:00 PM</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Service Type *</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="serviceType" id="salonService" value="salon" checked>
+                                    <label class="form-check-label" for="salonService">
+                                        <strong>In-Salon Service</strong> - Visit our salon for professional treatment
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="serviceType" id="homeService" value="home">
+                                    <label class="form-check-label" for="homeService">
+                                        <strong>Home Service</strong> - Professional service at your doorstep (+₹200)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Home Service Fields -->
+                            <div id="homeServiceFields" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-8 mb-3">
+                                        <label for="address" class="form-label">Complete Address *</label>
+                                        <textarea class="form-control" id="address" rows="3" placeholder="Enter your complete address including landmark"></textarea>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="pincode" class="form-label">Pincode *</label>
+                                        <input type="text" class="form-control" id="pincode" placeholder="Enter pincode">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">Special Notes</label>
+                                <textarea class="form-control" id="notes" rows="3" placeholder="Any special requirements or notes for your booking"></textarea>
+                            </div>
+
+                            <!-- Price Summary -->
+                            <div id="priceSummary" class="border rounded p-3 bg-light mb-4" style="display: none;">
+                                <h6 class="fw-bold">Price Summary</h6>
+                                <div class="d-flex justify-content-between">
+                                    <span>Package Price:</span>
+                                    <span id="packagePrice">₹0</span>
+                                </div>
+                                <div class="d-flex justify-content-between" id="homeChargeRow" style="display: none;">
+                                    <span>Home Service Charge:</span>
+                                    <span id="homeCharge">₹200</span>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between fw-bold">
+                                    <span>Total Amount:</span>
+                                    <span id="totalAmount">₹0</span>
+                                </div>
+                            </div>
+
+                            <div class="text-center">
+                                <button type="submit" class="btn btn-primary btn-lg" id="bookButton">
+                                    <span class="spinner-border spinner-border-sm d-none" id="bookSpinner"></span>
+                                    Proceed to Payment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentModalLabel">Complete Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="paymentContent">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading payment...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+let currentPackage = null;
+let currentBooking = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Check authentication first
+    const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
+    if (!token) {
+        alert('Please login to book a package.');
+        window.location.href = window.APP_CONFIG.URLS.login;
+        return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const packageId = urlParams.get('package');
+
+    if (!packageId || isNaN(parseInt(packageId))) {
+        alert('Invalid package ID');
+        window.location.href = window.APP_CONFIG.URLS.packages;
+        return;
+    }
+
+    loadPackageDetails(parseInt(packageId));
+    setupEventListeners();
+});
+
+async function loadPackageDetails(packageId) {
+    try {
+        console.log('Loading package details for ID:', packageId);
+        const response = await fetch(`/api/packages/${packageId}`);
+        console.log('Package fetch response status:', response.status);
+        if (!response.ok) {
+            throw new Error('Package not found');
+        }
+
+        currentPackage = await response.json();
+        console.log('Loaded package:', currentPackage);
+        displayPackageDetails();
+    } catch (error) {
+        console.error('Error loading package:', error);
+        document.getElementById('packageTitle').textContent = 'Package not found';
+        document.getElementById('packageDetails').innerHTML = '<p class="text-danger">Package not found or unavailable.</p>';
+    }
+}
+
+function displayPackageDetails() {
+    if (!currentPackage) return;
+
+    document.getElementById('packageTitle').textContent = `Book: ${currentPackage.name}`;
+
+    const detailsDiv = document.getElementById('packageDetails');
+    const servicesCount = currentPackage.details ? currentPackage.details.length : 0;
+    const totalSittings = currentPackage.details ? currentPackage.details.reduce((sum, detail) => sum + (detail.no_of_sitting || 1), 0) : 0;
+
+    detailsDiv.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <h6 class="fw-bold">Package Details</h6>
+                <p class="text-muted">${currentPackage.description || 'Comprehensive beauty package'}</p>
+
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <strong class="text-primary">${servicesCount}</strong><br>
+                        <small>Services</small>
+                    </div>
+                    <div class="col-4">
+                        <strong class="text-primary">${totalSittings}</strong><br>
+                        <small>Total Sittings</small>
+                    </div>
+                    <div class="col-4">
+                        <strong class="text-primary">₹${parseFloat(currentPackage.price).toFixed(2)}</strong><br>
+                        <small>Package Price</small>
+                    </div>
+                </div>
+
+                ${currentPackage.details && currentPackage.details.length > 0 ? `
+                    <div class="services-breakdown">
+                        <small class="text-muted fw-bold">Services Included:</small>
+                        <ul class="list-unstyled small">
+                            ${currentPackage.details.map(detail => {
+                                // This would need service data, simplified for now
+                                return `<li><i class="bi bi-check-circle text-success me-1"></i>Service ${detail.service_id} (${detail.no_of_sitting || 1} sitting${(detail.no_of_sitting || 1) > 1 ? 's' : ''})</li>`;
+                            }).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="package-price-card bg-primary text-white p-3 rounded">
+                    <h4>₹${parseFloat(currentPackage.price).toFixed(2)}</h4>
+                    <small>Complete Package</small>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Set minimum date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('startDate').min = tomorrow.toISOString().split('T')[0];
+    document.getElementById('startDate').value = tomorrow.toISOString().split('T')[0];
+
+    updatePriceSummary();
+}
+
+function setupEventListeners() {
+    // Service type change
+    document.querySelectorAll('input[name="serviceType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const homeFields = document.getElementById('homeServiceFields');
+            const isHome = this.value === 'home';
+
+            homeFields.style.display = isHome ? 'block' : 'none';
+
+            // Make address fields required for home service
+            document.getElementById('address').required = isHome;
+            document.getElementById('pincode').required = isHome;
+
+            updatePriceSummary();
+        });
+    });
+
+    // Form submission
+    document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await createBooking();
+    });
+}
+
+function updatePriceSummary() {
+    if (!currentPackage) return;
+
+    const summaryDiv = document.getElementById('priceSummary');
+    const packagePrice = parseFloat(currentPackage.price);
+    const isHomeService = document.querySelector('input[name="serviceType"]:checked').value === 'home';
+    const homeCharge = isHomeService ? 200 : 0;
+    const total = packagePrice + homeCharge;
+
+    document.getElementById('packagePrice').textContent = `₹${packagePrice.toFixed(2)}`;
+    document.getElementById('homeChargeRow').style.display = isHomeService ? 'block' : 'none';
+    document.getElementById('totalAmount').textContent = `₹${total.toFixed(2)}`;
+
+    summaryDiv.style.display = 'block';
+}
+
+async function createBooking() {
+    if (!currentPackage || !currentPackage.id) {
+        alert('Package information not loaded. Please refresh the page.');
+        return;
+    }
+
+    const form = document.getElementById('bookingForm');
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+
+    const startDate = document.getElementById('startDate').value;
+    const startTime = document.getElementById('startTime').value;
+    const serviceType = document.querySelector('input[name="serviceType"]:checked').value;
+    const address = document.getElementById('address').value;
+    const pincode = document.getElementById('pincode').value;
+    const notes = document.getElementById('notes').value;
+
+    const startDateTime = `${startDate}T${startTime}:00`;
+
+    const bookingData = {
+        start_datetime: startDateTime,
+        service_type: serviceType,
+        address: serviceType === 'home' ? address : null,
+        pincode: serviceType === 'home' ? pincode : null,
+        notes: notes
+    };
+
+    const btn = document.getElementById('bookButton');
+    const spinner = document.getElementById('bookSpinner');
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+
+    try {
+        console.log('Creating booking for package:', currentPackage.id);
+        console.log('Booking data:', bookingData);
+        console.log('API URL:', `/api/package/packages/${currentPackage.id}/book`);
+        const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
+        console.log('JWT Token exists:', !!token);
+        const response = await window.apiClient.post(`/api/package/packages/${currentPackage.id}/book`, bookingData);
+        console.log('Booking response:', response);
+        currentBooking = response.booking; // Extract the booking object from response
+        await initiatePayment();
+    } catch (error) {
+        console.error('Error creating booking:', error);
+        alert('Failed to create booking: ' + (error.message || 'Unknown error'));
+    } finally {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+    }
+}
+
+async function initiatePayment() {
+    try {
+        const response = await window.apiClient.post(`/api/package/razorpay/create_order/${currentBooking.id}`);
+        const paymentData = response;
+
+        // Show payment modal
+        const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        modal.show();
+
+        const options = {
+            key: paymentData.key_id,
+            amount: paymentData.razorpay_order.amount,
+            currency: paymentData.razorpay_order.currency,
+            name: 'Aneri Beauty Care',
+            description: `Package: ${currentPackage.name}`,
+            order_id: paymentData.razorpay_order.id,
+            handler: function(response) {
+                verifyPayment(response);
+            },
+            prefill: {
+                name: '', // Would need user data
+                email: '',
+                contact: ''
+            },
+            theme: {
+                color: '#0d6efd'
+            }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.open();
+
+    } catch (error) {
+        console.error('Error initiating payment:', error);
+        alert('Failed to initiate payment: ' + (error.message || 'Unknown error'));
+    }
+}
+
+async function verifyPayment(razorpayResponse) {
+    try {
+        const verifyData = {
+            razorpay_payment_id: razorpayResponse.razorpay_payment_id,
+            razorpay_order_id: razorpayResponse.razorpay_order_id,
+            razorpay_signature: razorpayResponse.razorpay_signature
+        };
+
+        await window.apiClient.post(`/api/package/razorpay/verify_payment/${currentBooking.id}`, verifyData);
+
+        // Success
+        document.getElementById('paymentContent').innerHTML = `
+            <div class="text-success">
+                <i class="bi bi-check-circle-fill fs-1"></i>
+                <h4 class="mt-3">Payment Successful!</h4>
+                <p>Your package booking has been confirmed.</p>
+                <button class="btn btn-primary" onclick="window.location.href='${window.APP_CONFIG.URLS.customerDashboard}'">View My Bookings</button>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Payment verification failed:', error);
+        document.getElementById('paymentContent').innerHTML = `
+            <div class="text-danger">
+                <i class="bi bi-x-circle-fill fs-1"></i>
+                <h4 class="mt-3">Payment Verification Failed</h4>
+                <p>Please contact support if amount was debited.</p>
+                <button class="btn btn-secondary" onclick="window.location.reload()">Try Again</button>
+            </div>
+        `;
+    }
+}
+</script>
+{% endblock %}

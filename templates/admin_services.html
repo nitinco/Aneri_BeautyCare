@@ -30,7 +30,7 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Service Name</th>
-                                <th>Category</th>
+                                <th>Subcategory</th>
                                 <th>Duration (mins)</th>
                                 <th>Type</th>
                                 <th>Price (₹)</th>
@@ -56,28 +56,69 @@
 
 <!-- Manage Categories Modal -->
 <div class="modal fade" id="manageCategoriesModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-secondary text-white">
-                <h5 class="modal-title"><i class="bi bi-tags"></i> Manage Categories</h5>
+                <h5 class="modal-title"><i class="bi bi-tags"></i> Manage Categories & Subcategories</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-8">
-                        <input class="form-control" id="newCategoryName" placeholder="New category name">
+                <!-- Nav tabs -->
+                <ul class="nav nav-tabs" id="categoryTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="categories-tab" data-bs-toggle="tab" data-bs-target="#categories" type="button" role="tab">Categories</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="subcategories-tab" data-bs-toggle="tab" data-bs-target="#subcategories" type="button" role="tab">Subcategories</button>
+                    </li>
+                </ul>
+
+                <!-- Tab content -->
+                <div class="tab-content mt-3" id="categoryTabsContent">
+                    <!-- Categories Tab -->
+                    <div class="tab-pane fade show active" id="categories" role="tabpanel">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <input class="form-control" id="newCategoryName" placeholder="New category name">
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary w-100" id="addCategoryBtn">Add Category</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>ID</th><th>Name</th><th>Description</th><th>Actions</th></tr>
+                                </thead>
+                                <tbody id="categoriesTableBody"></tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <button class="btn btn-primary w-100" id="addCategoryBtn">Add Category</button>
+
+                    <!-- Subcategories Tab -->
+                    <div class="tab-pane fade" id="subcategories" role="tabpanel">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <select class="form-select" id="subcategoryCategorySelect">
+                                    <option value="">Select category...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input class="form-control" id="newSubcategoryName" placeholder="New subcategory name">
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-success w-100" id="addSubcategoryBtn">Add Subcategory</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>ID</th><th>Name</th><th>Category</th><th>Description</th><th>Actions</th></tr>
+                                </thead>
+                                <tbody id="subcategoriesTableBody"></tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr><th>ID</th><th>Name</th><th>Description</th><th>Actions</th></tr>
-                        </thead>
-                        <tbody id="categoriesTableBody"></tbody>
-                    </table>
                 </div>
             </div>
             <div class="modal-footer">
@@ -96,7 +137,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="addServiceForm" novalidate>
+                <form id="addServiceForm" enctype="multipart/form-data" novalidate>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="serviceName" class="form-label">Service Name *</label>
@@ -105,11 +146,11 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="categoryId" class="form-label">Category *</label>
-                            <select class="form-select" id="categoryId" required>
-                                <option value="">Select category...</option>
+                            <label for="subcategoryId" class="form-label">Subcategory *</label>
+                            <select class="form-select" id="subcategoryId" required>
+                                <option value="">Select subcategory...</option>
                             </select>
-                            <div class="invalid-feedback">Category is required</div>
+                            <div class="invalid-feedback">Subcategory is required</div>
                         </div>
                         
                         <div class="col-md-6 mb-3">
@@ -136,6 +177,12 @@
                             <label for="description" class="form-label">Description</label>
                             <textarea class="form-control" id="description" rows="3"></textarea>
                         </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="serviceImage" class="form-label">Service Image</label>
+                            <input type="file" class="form-control" id="serviceImage" accept="image/*">
+                            <div class="form-text">Supported formats: PNG, JPG, JPEG, GIF, WebP. Max size: 16MB</div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -159,7 +206,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="editServiceForm" novalidate>
+                <form id="editServiceForm" enctype="multipart/form-data" novalidate>
                     <input type="hidden" id="editServiceId">
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -168,9 +215,9 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="editCategoryId" class="form-label">Category *</label>
-                            <select class="form-select" id="editCategoryId" required>
-                                <option value="">Select category...</option>
+                            <label for="editSubcategoryId" class="form-label">Subcategory *</label>
+                            <select class="form-select" id="editSubcategoryId" required>
+                                <option value="">Select subcategory...</option>
                             </select>
                         </div>
                         
@@ -196,6 +243,16 @@
                             <label for="editDescription" class="form-label">Description</label>
                             <textarea class="form-control" id="editDescription" rows="3"></textarea>
                         </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="editServiceImage" class="form-label">Service Image</label>
+                            <input type="file" class="form-control" id="editServiceImage" accept="image/*">
+                            <div class="form-text">Supported formats: PNG, JPG, JPEG, GIF, WebP. Max size: 16MB</div>
+                            <div id="currentImageContainer" class="mt-2" style="display: none;">
+                                <small class="text-muted">Current image:</small><br>
+                                <img id="currentServiceImage" src="" alt="Current service image" style="max-width: 200px; max-height: 200px;" class="img-thumbnail">
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -214,7 +271,7 @@
 {% block extra_js %}
 <script>
 let allServices = [];
-let allCategories = [];
+let allSubcategories = [];
 let addServiceModal, editServiceModal;
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -228,6 +285,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     editServiceModal = new bootstrap.Modal(document.getElementById('editServiceModal'));
     
     await loadCategories();
+    await loadSubcategories();
     await loadServices();
     setupEventListeners();
 });
@@ -238,22 +296,37 @@ async function loadCategories() {
         const categoriesArray = Array.isArray(data) ? data : (data.categories || []);
         if (categoriesArray.length) {
             allCategories = categoriesArray;
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        window.Toast.error('Failed to load categories');
+    }
+}
+
+async function loadSubcategories() {
+    try {
+        const data = await window.apiClient.getSubcategories();
+        const subcategoriesArray = Array.isArray(data) ? data : (data.subcategories || []);
+        if (subcategoriesArray.length) {
+            allSubcategories = subcategoriesArray;
             
-            // Populate category dropdowns
-            const selects = ['categoryId', 'editCategoryId'];
+            // Populate subcategory dropdowns
+            const selects = ['subcategoryId', 'editSubcategoryId'];
             selects.forEach(selectId => {
                 const select = document.getElementById(selectId);
-                allCategories.forEach(cat => {
+                // Clear existing options except the first one
+                select.innerHTML = '<option value="">Select subcategory...</option>';
+                allSubcategories.forEach(subcat => {
                     const option = document.createElement('option');
-                    option.value = cat.id;
-                    option.textContent = cat.name;
+                    option.value = subcat.id;
+                    option.textContent = subcat.name;
                     select.appendChild(option);
                 });
             });
         }
     } catch (error) {
-        console.error('Error loading categories:', error);
-        window.Toast.error('Failed to load categories');
+        console.error('Error loading subcategories:', error);
+        window.Toast.error('Failed to load subcategories');
     }
 }
 
@@ -289,7 +362,7 @@ function displayServices() {
         <tr>
             <td>${service.id}</td>
             <td><strong>${service.name}</strong></td>
-            <td><span class="badge bg-primary">${getCategoryName(service.category_id)}</span></td>
+            <td><span class="badge bg-primary">${getSubcategoryName(service.subcategory_id)}</span></td>
             <td>${service.duration_mins ?? service.duration}</td>
             <td><span class="text-muted">${service.service_type || 'in-center'}</span></td>
             <td>₹${service.price}</td>
@@ -306,19 +379,22 @@ function displayServices() {
     `).join('');
 }
 
-function getCategoryName(categoryId) {
-    const category = allCategories.find(c => c.id == categoryId);
-    return category ? category.name : 'Unknown';
+function getSubcategoryName(subcategoryId) {
+    const subcategory = allSubcategories.find(sc => sc.id == subcategoryId);
+    return subcategory ? subcategory.name : 'Unknown';
 }
 
 function setupEventListeners() {
     document.getElementById('saveServiceBtn').addEventListener('click', saveService);
     document.getElementById('updateServiceBtn').addEventListener('click', updateService);
     // categories management
-    document.getElementById('manageCategoriesBtn').addEventListener('click', function(){
+    document.getElementById('manageCategoriesBtn').addEventListener('click', async function(){
         const m = new bootstrap.Modal(document.getElementById('manageCategoriesModal'));
         m.show();
+        await loadCategories();
         loadCategoriesTable();
+        loadSubcategoriesTable();
+        loadCategoriesForSubcategorySelect();
     });
     document.getElementById('addCategoryBtn').addEventListener('click', async function(){
         const name = document.getElementById('newCategoryName').value.trim();
@@ -327,8 +403,21 @@ function setupEventListeners() {
             await window.apiClient.createCategory({ name });
             window.Toast.success('Category added');
             document.getElementById('newCategoryName').value = '';
-            await loadCategories();
+            await loadSubcategories();
             await loadCategoriesTable();
+            await loadCategoriesForSubcategorySelect();
+        } catch (e) { window.Toast.error(e.message || 'Failed to add'); }
+    });
+    document.getElementById('addSubcategoryBtn').addEventListener('click', async function(){
+        const categoryId = document.getElementById('subcategoryCategorySelect').value;
+        const name = document.getElementById('newSubcategoryName').value.trim();
+        if (!categoryId || !name) return window.Toast.error('Category and name required');
+        try {
+            await window.apiClient.createSubcategory({ name, category_id: parseInt(categoryId) });
+            window.Toast.success('Subcategory added');
+            document.getElementById('newSubcategoryName').value = '';
+            await loadSubcategories();
+            await loadSubcategoriesTable();
         } catch (e) { window.Toast.error(e.message || 'Failed to add'); }
     });
 }
@@ -377,9 +466,92 @@ async function removeCategory(catId) {
     try {
         await window.apiClient.deleteCategory(catId);
         window.Toast.success('Category deleted');
-        await loadCategories();
+        await loadSubcategories();
         await loadCategoriesTable();
+        await loadCategoriesForSubcategorySelect();
         await loadServices();
+    } catch (e) { window.Toast.error(e.message || 'Failed to delete'); }
+}
+
+async function loadSubcategoriesTable() {
+    const tbody = document.getElementById('subcategoriesTableBody');
+    try {
+        const data = await window.apiClient.getSubcategories();
+        const subcats = Array.isArray(data) ? data : (data.subcategories || []);
+        if (!subcats.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-muted">No subcategories</td></tr>';
+            return;
+        }
+        tbody.innerHTML = subcats.map(sc => `
+            <tr data-subcat-id="${sc.id}">
+                <td>${sc.id}</td>
+                <td><input class="form-control form-control-sm subcat-name" value="${sc.name}"></td>
+                <td>
+                    <select class="form-select form-select-sm subcat-category">
+                        ${getCategoryOptions(sc.category_id)}
+                    </select>
+                </td>
+                <td><input class="form-control form-control-sm subcat-desc" value="${sc.description || ''}"></td>
+                <td>
+                    <button class="btn btn-sm btn-success me-1" onclick="saveSubcategory(${sc.id})">Save</button>
+                    <button class="btn btn-sm btn-danger" onclick="removeSubcategory(${sc.id})">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-danger">Failed to load</td></tr>';
+    }
+}
+
+async function loadCategoriesForSubcategorySelect() {
+    try {
+        const data = await window.apiClient.getCategories();
+        const cats = Array.isArray(data) ? data : (data.categories || []);
+        const select = document.getElementById('subcategoryCategorySelect');
+        select.innerHTML = '<option value="">Select category...</option>';
+        cats.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.id;
+            option.textContent = cat.name;
+            select.appendChild(option);
+        });
+    } catch (e) {
+        console.error('Error loading categories for subcategory select:', e);
+    }
+}
+
+function getCategoryOptions(selectedCategoryId) {
+    // Use the globally loaded allCategories
+    if (!allCategories || !allCategories.length) {
+        return '<option value="">No categories</option>';
+    }
+    return allCategories.map(cat => 
+        `<option value="${cat.id}" ${cat.id == selectedCategoryId ? 'selected' : ''}>${cat.name}</option>`
+    ).join('');
+}
+
+async function saveSubcategory(subcatId) {
+    const row = document.querySelector(`tr[data-subcat-id="${subcatId}"]`);
+    if (!row) return;
+    const name = row.querySelector('.subcat-name').value.trim();
+    const categoryId = row.querySelector('.subcat-category').value;
+    const desc = row.querySelector('.subcat-desc').value.trim();
+    if (!name || !categoryId) return window.Toast.error('Name and category required');
+    try {
+        await window.apiClient.updateSubcategory(subcatId, { name, category_id: parseInt(categoryId), description: desc });
+        window.Toast.success('Subcategory updated');
+        await loadSubcategories();
+        await loadSubcategoriesTable();
+    } catch (e) { window.Toast.error(e.message || 'Failed to update'); }
+}
+
+async function removeSubcategory(subcatId) {
+    if (!confirm('Delete subcategory #' + subcatId + '?')) return;
+    try {
+        await window.apiClient.deleteSubcategory(subcatId);
+        window.Toast.success('Subcategory deleted');
+        await loadSubcategories();
+        await loadSubcategoriesTable();
     } catch (e) { window.Toast.error(e.message || 'Failed to delete'); }
 }
 
@@ -391,14 +563,18 @@ async function saveService() {
         return;
     }
     
-    const serviceData = {
-        name: document.getElementById('serviceName').value,
-        category_id: parseInt(document.getElementById('categoryId').value),
-        duration_mins: parseInt(document.getElementById('duration').value),
-        price: parseFloat(document.getElementById('price').value),
-        description: document.getElementById('description').value,
-        service_type: document.getElementById('serviceType') ? document.getElementById('serviceType').value : 'in-center'
-    };
+    const formData = new FormData();
+    formData.append('name', document.getElementById('serviceName').value);
+    formData.append('subcategory_id', parseInt(document.getElementById('subcategoryId').value));
+    formData.append('duration_mins', parseInt(document.getElementById('duration').value));
+    formData.append('price', parseFloat(document.getElementById('price').value));
+    formData.append('description', document.getElementById('description').value);
+    formData.append('service_type', document.getElementById('serviceType') ? document.getElementById('serviceType').value : 'in-center');
+    
+    const imageFile = document.getElementById('serviceImage').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
     
     const btn = document.getElementById('saveServiceBtn');
     const spinner = document.getElementById('saveSpinner');
@@ -406,7 +582,7 @@ async function saveService() {
     spinner.classList.remove('d-none');
     
     try {
-        await window.apiClient.createService(serviceData);
+        await window.apiClient.createService(formData);
         window.Toast.success('Service added successfully!');
         addServiceModal.hide();
         form.reset();
@@ -426,13 +602,23 @@ function editService(serviceId) {
     
     document.getElementById('editServiceId').value = service.id;
     document.getElementById('editServiceName').value = service.name;
-    document.getElementById('editCategoryId').value = service.category_id;
+    document.getElementById('editSubcategoryId').value = service.subcategory_id;
     document.getElementById('editDuration').value = service.duration_mins ?? service.duration;
     document.getElementById('editPrice').value = service.price;
     document.getElementById('editDescription').value = service.description || '';
     // set service type
     if (document.getElementById('editServiceType')) {
         document.getElementById('editServiceType').value = service.service_type || 'in-center';
+    }
+    
+    // Show current image if exists
+    const currentImageContainer = document.getElementById('currentImageContainer');
+    const currentImage = document.getElementById('currentServiceImage');
+    if (service.image) {
+        currentImage.src = `/static/${service.image}`;
+        currentImageContainer.style.display = 'block';
+    } else {
+        currentImageContainer.style.display = 'none';
     }
     
     editServiceModal.show();
@@ -447,14 +633,18 @@ async function updateService() {
     }
     
     const serviceId = document.getElementById('editServiceId').value;
-    const serviceData = {
-        name: document.getElementById('editServiceName').value,
-        category_id: parseInt(document.getElementById('editCategoryId').value),
-        duration_mins: parseInt(document.getElementById('editDuration').value),
-        price: parseFloat(document.getElementById('editPrice').value),
-        description: document.getElementById('editDescription').value,
-        service_type: document.getElementById('editServiceType') ? document.getElementById('editServiceType').value : 'in-center'
-    };
+    const formData = new FormData();
+    formData.append('name', document.getElementById('editServiceName').value);
+    formData.append('subcategory_id', parseInt(document.getElementById('editSubcategoryId').value));
+    formData.append('duration_mins', parseInt(document.getElementById('editDuration').value));
+    formData.append('price', parseFloat(document.getElementById('editPrice').value));
+    formData.append('description', document.getElementById('editDescription').value);
+    formData.append('service_type', document.getElementById('editServiceType') ? document.getElementById('editServiceType').value : 'in-center');
+    
+    const imageFile = document.getElementById('editServiceImage').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
     
     const btn = document.getElementById('updateServiceBtn');
     const spinner = document.getElementById('updateSpinner');
@@ -462,7 +652,7 @@ async function updateService() {
     spinner.classList.remove('d-none');
     
     try {
-        await window.apiClient.updateService(serviceId, serviceData);
+        await window.apiClient.updateService(serviceId, formData);
         window.Toast.success('Service updated successfully!');
         editServiceModal.hide();
         await loadServices();

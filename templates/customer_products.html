@@ -37,22 +37,48 @@ async function loadProducts() {
         if (productsArray && productsArray.length > 0) {
             grid.innerHTML = productsArray
                 .filter(p => p.is_active !== false)
-                .map(product => `
+                .map(product => {
+                    const hasOffer = product.discounted_price && product.applied_offer;
+                    const originalPrice = parseFloat(product.price);
+                    const discountedPrice = hasOffer ? parseFloat(product.discounted_price) : originalPrice;
+                    
+                    return `
                 <div class="col-lg-3 col-md-4 col-sm-6">
-                    <div class="card h-100 shadow-sm">
+                    <div class="card h-100 shadow-sm ${hasOffer ? 'border-success' : ''}">
+                        ${product.image ? `<img src="/static/${product.image}" class="card-img-top" alt="${product.name}" style="height: 200px; object-fit: cover;">` : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;"><i class="bi bi-box-seam text-muted" style="font-size: 3rem;"></i></div>`}
+                        ${hasOffer ? `<div class="position-absolute top-0 end-0 bg-success text-white px-2 py-1 rounded-start" style="font-size: 0.8rem;">${product.applied_offer.discount_percent}% OFF</div>` : ''}
                         <div class="card-body">
                             <h5 class="card-title">${product.name}</h5>
                             <p class="text-muted">${product.brand_name || (product.brand_id ? 'Brand #' + product.brand_id : 'Premium')}</p>
                             <p class="small text-muted mb-1">SKU: ${product.sku || '-'}</p>
                             ${product.is_active === true ? '<span class="badge bg-success mb-2">Available</span>' : '<span class="badge bg-secondary mb-2">Unavailable</span>'}
-                            <h4 class="text-primary">₹${product.price}</h4>
-                            <button class="btn btn-primary w-100 mt-2" onclick="addToCart(${product.id})">
+                            
+                            <div class="mb-2">
+                                ${hasOffer ? `
+                                    <h4 class="text-success mb-1">₹${discountedPrice.toFixed(2)}</h4>
+                                    <small class="text-muted text-decoration-line-through">₹${originalPrice.toFixed(2)}</small>
+                                    <small class="text-success ms-2">${product.applied_offer.title}</small>
+                                ` : `
+                                    <h4 class="text-primary">₹${originalPrice.toFixed(2)}</h4>
+                                `}
+                            </div>
+                            
+                            ${product.offers && product.offers.length > 1 ? `
+                                <div class="mb-2">
+                                    <select class="form-select form-select-sm" id="offerSelect-${product.id}" onchange="applyOffer(${product.id})">
+                                        <option value="">Select Offer</option>
+                                        ${product.offers.map(offer => `<option value="${offer.id}" data-discount="${offer.discount_percent}" data-price="${(originalPrice * (1 - offer.discount_percent / 100)).toFixed(2)}">${offer.title} (${offer.discount_percent}% off)</option>`).join('')}
+                                    </select>
+                                </div>
+                            ` : ''}
+                            
+                            <button class="btn ${hasOffer ? 'btn-success' : 'btn-primary'} w-100 mt-2" onclick="addToCart(${product.id})">
                                 <i class="bi bi-cart-plus"></i> Add to Cart
                             </button>
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         } else {
             grid.innerHTML = '<div class="col-12 text-center"><p class="text-muted">No products available</p></div>';
         }
@@ -62,17 +88,56 @@ async function loadProducts() {
     }
 }
 
+function applyOffer(productId) {
+    const select = document.getElementById(`offerSelect-${productId}`);
+    const selectedOption = select.options[select.selectedIndex];
+    const discountPercent = selectedOption.getAttribute('data-discount');
+    const discountedPrice = selectedOption.getAttribute('data-price');
+    
+    // Update the displayed price
+    const card = select.closest('.card-body');
+    const priceElement = card.querySelector('h4');
+    const originalPrice = parseFloat(window._productsCache.find(p => p.id == productId).price);
+    
+    if (discountPercent && discountedPrice) {
+        priceElement.innerHTML = `
+            <span class="text-success">₹${parseFloat(discountedPrice).toFixed(2)}</span><br>
+            <small class="text-muted text-decoration-line-through">₹${originalPrice.toFixed(2)}</small>
+        `;
+    } else {
+        priceElement.innerHTML = `<span class="text-primary">₹${originalPrice.toFixed(2)}</span>`;
+    }
+}
+
 function addToCart(productId) {
     // try to find product in cache first
     const cache = window._productsCache || [];
     const prod = cache.find(p => Number(p.id) === Number(productId));
     if (prod) {
+        // Check if an offer is selected
+        const offerSelect = document.getElementById(`offerSelect-${productId}`);
+        let selectedOffer = null;
+        let finalPrice = parseFloat(prod.price) || 0;
+        
+        if (offerSelect && offerSelect.value) {
+            const selectedOption = offerSelect.options[offerSelect.selectedIndex];
+            const discountPercent = parseFloat(selectedOption.getAttribute('data-discount')) || 0;
+            finalPrice = finalPrice * (1 - discountPercent / 100);
+            selectedOffer = prod.offers.find(o => o.id == offerSelect.value);
+        } else if (prod.applied_offer) {
+            // Use the automatically applied offer
+            finalPrice = parseFloat(prod.discounted_price) || finalPrice;
+            selectedOffer = prod.applied_offer;
+        }
+        
         // ensure numeric price
         const productObj = {
             id: Number(prod.id),
             name: prod.name,
-            price: parseFloat(prod.price) || 0,
-            image: prod.image || null
+            price: finalPrice,
+            original_price: parseFloat(prod.price) || 0,
+            image: prod.image || null,
+            applied_offer: selectedOffer
         };
         window.CartManager.addItem(productObj, 1);
         return;
@@ -83,7 +148,29 @@ function addToCart(productId) {
         const arr = Array.isArray(data) ? data : (data.products || []);
         const p = arr.find(x => Number(x.id) === Number(productId));
         if (p) {
-            const productObj = { id: Number(p.id), name: p.name, price: parseFloat(p.price) || 0, image: p.image || null };
+            let finalPrice = parseFloat(p.price) || 0;
+            let selectedOffer = null;
+            
+            // Check for selected offer
+            const offerSelect = document.getElementById(`offerSelect-${productId}`);
+            if (offerSelect && offerSelect.value) {
+                const selectedOption = offerSelect.options[offerSelect.selectedIndex];
+                const discountPercent = parseFloat(selectedOption.getAttribute('data-discount')) || 0;
+                finalPrice = finalPrice * (1 - discountPercent / 100);
+                selectedOffer = p.offers.find(o => o.id == offerSelect.value);
+            } else if (p.applied_offer) {
+                finalPrice = parseFloat(p.discounted_price) || finalPrice;
+                selectedOffer = p.applied_offer;
+            }
+            
+            const productObj = { 
+                id: Number(p.id), 
+                name: p.name, 
+                price: finalPrice,
+                original_price: parseFloat(p.price) || 0,
+                image: p.image || null,
+                applied_offer: selectedOffer
+            };
             window.CartManager.addItem(productObj, 1);
         } else {
             window.Toast.error('Product not found');

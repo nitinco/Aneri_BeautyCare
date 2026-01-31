@@ -3,8 +3,60 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from extensions import db
 from models import Service, Appointment, Booking, Customer, Staff
 import datetime
+from collections import defaultdict
 
 booking_bp = Blueprint('booking', __name__)
+
+
+
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from extensions import db
+from models import Service, Appointment, Booking, Customer, Staff
+import datetime
+from collections import defaultdict
+
+booking_bp = Blueprint('booking', __name__)
+
+# Route: List all home service bookings grouped by customer
+@booking_bp.route('/bookings/grouped_by_customer', methods=['GET'])
+@jwt_required()
+def bookings_grouped_by_customer():
+    # Only admin can view all bookings grouped by customer
+    if role_from_jwt() != 'admin':
+        return jsonify({'message': 'admin required'}), 403
+    from models import Booking, Customer, User, Service
+    bookings = Booking.query.order_by(Booking.start_datetime.desc()).all()
+    grouped = defaultdict(list)
+    for b in bookings:
+        try:
+            customer = b.customer
+            user = customer.user if customer else None
+            customer_name = user.name if user else None
+            service_name = b.service.name if b.service else None
+        except Exception:
+            customer_name = None
+            service_name = None
+        grouped[customer_name].append({
+            'booking_id': b.id,
+            'service_id': b.service_id,
+            'service_name': service_name,
+            'start_datetime': b.start_datetime.isoformat() if b.start_datetime else None,
+            'end_datetime': b.end_datetime.isoformat() if b.end_datetime else None,
+            'address': b.address,
+            'pincode': b.pincode,
+            'status': b.status,
+            'staff_id': b.staff_id,
+            'home_charge': b.home_charge
+        })
+    # Convert defaultdict to list of dicts for JSON
+    result = []
+    for customer_name, bookings in grouped.items():
+        result.append({
+            'customer_name': customer_name,
+            'bookings': bookings
+        })
+    return jsonify(result)
 
 
 def role_from_jwt():
@@ -23,15 +75,28 @@ def overlaps(start1, end1, start2, end2):
 
 @booking_bp.route('/slots', methods=['GET'])
 def available_slots():
-    # params: service_id, date (YYYY-MM-DD)
-    service_id = request.args.get('service_id')
+    # params: service_ids (comma-separated), date (YYYY-MM-DD)
+    service_ids_param = request.args.get('service_ids')
     date = request.args.get('date')
-    if not service_id or not date:
-        return jsonify({'message': 'service_id and date required'}), 400
+    if not service_ids_param or not date:
+        return jsonify({'message': 'service_ids and date required'}), 400
 
-    svc = Service.query.get(service_id)
-    if not svc:
-        return jsonify({'message': 'service not found'}), 404
+    # Parse service IDs
+    try:
+        service_ids = [int(sid.strip()) for sid in service_ids_param.split(',') if sid.strip()]
+    except ValueError:
+        return jsonify({'message': 'invalid service_ids format'}), 400
+
+    if not service_ids:
+        return jsonify({'message': 'at least one service_id required'}), 400
+
+    # Get all services
+    svcs = Service.query.filter(Service.id.in_(service_ids)).all()
+    if len(svcs) != len(service_ids):
+        return jsonify({'message': 'one or more services not found'}), 404
+
+    # Use the maximum duration among selected services
+    max_duration = max([svc.duration_mins for svc in svcs])
 
     # Basic working hours and slot interval
     WORK_START = 9
@@ -46,8 +111,8 @@ def available_slots():
     # collect staff list
     staffs = Staff.query.filter_by(is_available=True, is_active=True).all()
 
-    while cur + datetime.timedelta(minutes=svc.duration_mins) <= end_dt:
-        slot_end = cur + datetime.timedelta(minutes=svc.duration_mins)
+    while cur + datetime.timedelta(minutes=max_duration) <= end_dt:
+        slot_end = cur + datetime.timedelta(minutes=max_duration)
         # check if any staff is free for this slot
         free_staff_ids = []
         for staff in staffs:
@@ -65,7 +130,12 @@ def available_slots():
                 free_staff_ids.append(staff.id)
 
         if free_staff_ids:
-            slots.append({'start': cur.isoformat(), 'end': slot_end.isoformat(), 'available_staff': free_staff_ids})
+            slots.append({
+                'start': cur.isoformat(), 
+                'end': slot_end.isoformat(), 
+                'available_staff': free_staff_ids,
+                'duration': max_duration
+            })
 
         cur += datetime.timedelta(minutes=INTERVAL)
 
@@ -85,21 +155,37 @@ def create_appointment():
     if not customer:
         return jsonify({'message': 'Customer profile required'}), 400
 
+
     data = request.get_json() or {}
-    service_id = data.get('service_id')
+    service_ids = data.get('service_ids')
     date = data.get('date')
     time = data.get('time')
     staff_id = data.get('staff_id')
+    offer_id = data.get('offer_id')
 
-    if not service_id or not date or not time:
-        return jsonify({'message': 'service_id, date and time required'}), 400
+    print(f"Booking request: service_ids={service_ids}, date={date}, time={time}, staff_id={staff_id}, offer_id={offer_id}")
 
-    svc = Service.query.get(service_id)
-    if not svc:
-        return jsonify({'message': 'service not found'}), 404
+    if not service_ids or not isinstance(service_ids, list) or not date or not time:
+        return jsonify({'message': 'service_ids (list), date and time required'}), 400
 
+    svcs = Service.query.filter(Service.id.in_(service_ids)).all()
+    if not svcs or len(svcs) != len(service_ids):
+        return jsonify({'message': 'One or more services not found'}), 404
+
+    # Validate offer if provided
+    offer = None
+    if offer_id:
+        from models import Offer
+        offer = Offer.query.get(offer_id)
+        if not offer or not offer.is_valid():
+            return jsonify({'message': 'Invalid or expired offer'}), 400
+
+    # Use the max duration among selected services
+    max_duration = max([svc.duration_mins for svc in svcs])
     start_dt = parse_datetime(date, time)
-    end_dt = start_dt + datetime.timedelta(minutes=svc.duration_mins)
+    end_dt = start_dt + datetime.timedelta(minutes=max_duration)
+
+    print(f"Parsed times: start={start_dt}, end={end_dt}, duration={max_duration}")
 
     # if staff provided, check availability
     assigned_staff = None
@@ -137,10 +223,41 @@ def create_appointment():
                 break
 
     appt = Appointment(customer_id=customer.id, staff_id=assigned_staff.id if assigned_staff else None,
-                       service_id=svc.id, start_datetime=start_dt, end_datetime=end_dt, status='pending')
+                       start_datetime=start_dt, end_datetime=end_dt, status='pending', offer_id=offer.id if offer else None)
+    appt.services = svcs
     db.session.add(appt)
-    db.session.commit()
-    return jsonify({'appointment': appt.to_dict()}), 201
+    
+    # Final conflict check before committing (race condition protection)
+    # Note: We already checked availability during staff assignment, so this is a lightweight check
+    if assigned_staff:
+        # Flush to get the appointment ID
+        db.session.flush()
+        print(f"Final conflict check for staff {assigned_staff.id}, appointment {appt.id}")
+        # Only check for conflicts that might have been created after our initial check
+        # Use a more conservative time window to avoid false positives
+        final_conflict = Appointment.query.filter(
+            Appointment.id != appt.id,  # Exclude the appointment we're creating
+            Appointment.staff_id == assigned_staff.id,
+            Appointment.status.in_(['approved']),  # Only check approved appointments to avoid race conditions with pending ones
+            db.or_(
+                db.and_(Appointment.start_datetime < end_dt, Appointment.end_datetime > start_dt),
+            )
+        ).first()
+        if final_conflict:
+            print(f"Final conflict found: {final_conflict.id}")
+            db.session.rollback()
+            return jsonify({'message': 'Slot no longer available. Please select a different time.'}), 409
+        else:
+            print("No final conflict found")
+    else:
+        print("No staff assigned, skipping final conflict check")
+    
+    try:
+        db.session.commit()
+        return jsonify({'appointment': appt.to_dict()}), 201
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'message': 'Slot no longer available. Please select a different time.'}), 409
 
 
 @booking_bp.route('/bookings', methods=['POST'])
@@ -156,26 +273,38 @@ def create_booking():
         return jsonify({'message': 'Customer profile required'}), 400
 
     data = request.get_json() or {}
-    service_id = data.get('service_id')
+    service_ids = data.get('service_ids')
     date = data.get('date')
     time = data.get('time')
     address = data.get('address')
     pincode = data.get('pincode')
+    home_charge = data.get('home_charge', 0)
+    offer_id = data.get('offer_id')
 
-    if not service_id or not date or not time or not address:
-        return jsonify({'message': 'service_id, date, time, address required'}), 400
+    if not service_ids or not isinstance(service_ids, list) or not date or not time or not address:
+        return jsonify({'message': 'service_ids (list), date, time, address required'}), 400
 
-    svc = Service.query.get(service_id)
-    if not svc:
-        return jsonify({'message': 'service not found'}), 404
+    svcs = Service.query.filter(Service.id.in_(service_ids)).all()
+    if not svcs or len(svcs) != len(service_ids):
+        return jsonify({'message': 'One or more services not found'}), 404
+
+    # Validate offer if provided
+    offer = None
+    if offer_id:
+        from models import Offer
+        offer = Offer.query.get(offer_id)
+        if not offer or not offer.is_valid():
+            return jsonify({'message': 'Invalid or expired offer'}), 400
 
     start_dt = parse_datetime(date, time)
-    end_dt = start_dt + datetime.timedelta(minutes=svc.duration_mins)
+    max_duration = max([svc.duration_mins for svc in svcs])
+    end_dt = start_dt + datetime.timedelta(minutes=max_duration)
 
-    # Compute home charge: simple rule — if pincode matches an Area in DB, zero charge else fixed 200
-    from models import Area
-    area = Area.query.filter_by(pincode=pincode).first() if pincode else None
-    home_charge = 0.0 if area else 200.0
+    # If home_charge is not provided, compute it (backward compatibility)
+    if not home_charge:
+        from models import Area
+        area = Area.query.filter_by(pincode=pincode).first() if pincode else None
+        home_charge = 0.0 if area else 200.0
 
     # assign staff same as appointment auto-assign logic
     assigned_staff = None
@@ -183,7 +312,7 @@ def create_booking():
         conflict = Appointment.query.filter(
             Appointment.staff_id == candidate.id,
             Appointment.status.in_(['approved','pending']),
-            db.or_(
+            db.or_( 
                 db.and_(Appointment.start_datetime <= start_dt, Appointment.end_datetime > start_dt),
                 db.and_(Appointment.start_datetime < end_dt, Appointment.end_datetime >= end_dt),
                 db.and_(Appointment.start_datetime >= start_dt, Appointment.end_datetime <= end_dt),
@@ -193,14 +322,13 @@ def create_booking():
             assigned_staff = candidate
             break
 
-    booking = Booking(customer_id=customer.id, service_id=svc.id, start_datetime=start_dt,
+    booking = Booking(customer_id=customer.id, start_datetime=start_dt,
                       end_datetime=end_dt, address=address, pincode=pincode, home_charge=home_charge,
-                      staff_id=assigned_staff.id if assigned_staff else None, status='pending')
-
+                      staff_id=assigned_staff.id if assigned_staff else None, status='pending', offer_id=offer.id if offer else None)
+    booking.services = svcs
     db.session.add(booking)
     db.session.commit()
     return jsonify({'booking': booking.to_dict()}), 201
-
 
 @booking_bp.route('/appointments/<int:appt_id>/approve', methods=['POST'])
 @jwt_required()
@@ -310,6 +438,22 @@ def staff_assignments():
     out_sorted = sorted(out, key=_key)
     return jsonify(out_sorted)
 
+
+
+# Route: List all home service bookings for the logged-in user
+@booking_bp.route('/my/bookings', methods=['GET'])
+@jwt_required()
+def my_bookings():
+    uid = get_jwt_identity()
+    try:
+        user_id = int(uid)
+    except Exception:
+        return jsonify({'message': 'invalid token identity'}), 400
+    customer = Customer.query.filter_by(user_id=user_id).first()
+    if not customer:
+        return jsonify({'message': 'customer profile not found'}), 404
+    bookings = Booking.query.filter_by(customer_id=customer.id).order_by(Booking.start_datetime.desc()).all()
+    return jsonify([b.to_dict() for b in bookings])
 
 @booking_bp.route('/my/appointments', methods=['GET'])
 @jwt_required()

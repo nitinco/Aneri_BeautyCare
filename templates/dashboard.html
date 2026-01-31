@@ -114,6 +114,36 @@
                         </div>
                     </div>
                 </div>
+                <!-- Home Service Bookings -->
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0">Home Service Bookings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="homeServiceList">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Package Bookings -->
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0">Package Bookings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="packageBookingsList">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- My Complaints -->
                 <div class="card border-0 shadow-sm mt-4">
                     <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
@@ -249,11 +279,21 @@ async function loadDashboardData() {
     const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
     
     const appointmentsList = document.getElementById('appointmentsList');
+    const homeServiceList = document.getElementById('homeServiceList');
+
     try {
+        // Fetch normal appointments
         const data = await window.apiClient.getMyAppointments();
         const appts = Array.isArray(data) ? data : (data.appointments || []);
-        document.getElementById('totalAppointments').textContent = appts.length.toString();
         
+        // Fetch package bookings
+        const packageBookings = await window.apiClient.getMyPackageBookings();
+        const packageCount = Array.isArray(packageBookings) ? packageBookings.length : 0;
+        
+        // Update total appointments count (regular + package bookings)
+        document.getElementById('totalAppointments').textContent = (appts.length + packageCount).toString();
+
+        // Render normal appointments (all, since home bookings are now separate)
         if (appts.length === 0) {
             appointmentsList.innerHTML = `
                 <div class="text-center text-muted py-4">
@@ -277,13 +317,91 @@ async function loadDashboardData() {
                 `;
             }).join('');
         }
-        
+
+        // Fetch and render home service bookings
+        if (homeServiceList) {
+            try {
+                const bookings = await window.apiClient.getMyBookings ? await window.apiClient.getMyBookings() : [];
+                if (!bookings || bookings.length === 0) {
+                    homeServiceList.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-house-x" style="font-size: 3rem;"></i>
+                            <p class="mt-2">No home service bookings yet</p>
+                            <a href="{{ url_for('main.customer_book') }}" class="btn btn-primary btn-sm">Book Home Service</a>
+                        </div>
+                    `;
+                } else {
+                    homeServiceList.innerHTML = bookings.map(b => {
+                        const start = new Date(b.start_datetime);
+                        const end = new Date(b.end_datetime);
+                        return `
+                            <div class="d-flex justify-content-between align-items-center border rounded p-3 mb-2">
+                                <div>
+                                    <div class="fw-bold">Home Service #${b.id || b.booking_id}</div>
+                                    <div class="text-muted small">${start.toLocaleString()} - ${end.toLocaleTimeString()}</div>
+                                    <div class="text-muted small">${b.address ? b.address : ''}</div>
+                                </div>
+                                <span class="badge ${b.status === 'approved' ? 'bg-success' : b.status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark'}">${b.status}</span>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (err) {
+                homeServiceList.innerHTML = '<div class="text-danger">Failed to load home service bookings</div>';
+            }
+        }
+
+        // Fetch and render package bookings
+        const packageBookingsList = document.getElementById('packageBookingsList');
+        if (packageBookingsList) {
+            try {
+                const packageBookings = await window.apiClient.getMyPackageBookings();
+                if (!packageBookings || packageBookings.length === 0) {
+                    packageBookingsList.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-box-seam" style="font-size: 3rem;"></i>
+                            <p class="mt-2">No package bookings yet</p>
+                            <a href="{{ url_for('main.packages') }}" class="btn btn-primary btn-sm">Browse Packages</a>
+                        </div>
+                    `;
+                } else {
+                    packageBookingsList.innerHTML = packageBookings.map(b => {
+                        const start = new Date(b.start_datetime);
+                        const statusBadge = b.status === 'confirmed' ? 'bg-success' : 
+                                          b.status === 'cancelled' ? 'bg-danger' : 
+                                          b.status === 'completed' ? 'bg-info' : 'bg-warning text-dark';
+                        return `
+                            <div class="d-flex justify-content-between align-items-center border rounded p-3 mb-2">
+                                <div>
+                                    <div class="fw-bold">${b.package_name || 'Package'} #${b.id}</div>
+                                    <div class="text-muted small">${start.toLocaleString()}</div>
+                                    <div class="text-muted small">₹${parseFloat(b.total_amount || 0).toFixed(2)}</div>
+                                    ${b.service_type === 'home' ? `<div class="text-muted small">${b.address || ''}</div>` : ''}
+                                </div>
+                                <span class="badge ${statusBadge}">${b.status}</span>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (err) {
+                console.error('Failed to load package bookings:', err);
+                packageBookingsList.innerHTML = '<div class="text-danger">Failed to load package bookings</div>';
+            }
+        }
+
         // Load orders for this user and update stats
         try {
             const ordersResp = await window.apiClient.getMyOrders();
             const orders = Array.isArray(ordersResp) ? ordersResp : (ordersResp.orders || []);
             document.getElementById('totalOrders').textContent = (orders.length || 0).toString();
-            const totalSpent = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount || o.total || 0) || 0), 0);
+            
+            // Calculate total spent from orders
+            const ordersTotal = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount || o.total || 0) || 0), 0);
+            
+            // Add package bookings to total spent
+            const packageBookingsTotal = packageBookings.reduce((sum, b) => sum + (parseFloat(b.total_amount || 0) || 0), 0);
+            
+            const totalSpent = ordersTotal + packageBookingsTotal;
             document.getElementById('totalSpent').textContent = totalSpent.toFixed(2);
         } catch (err) {
             console.error('Failed to load orders for dashboard:', err);
@@ -299,7 +417,11 @@ async function loadDashboardData() {
                     const ordersResp = await window.apiClient.getMyOrders();
                     const orders = Array.isArray(ordersResp) ? ordersResp : (ordersResp.orders || []);
                     document.getElementById('totalOrders').textContent = (orders.length || 0).toString();
-                    const totalSpent = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount || o.total || 0) || 0), 0);
+                    
+                    // Recalculate total spent including both orders and package bookings
+                    const ordersTotal = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount || o.total || 0) || 0), 0);
+                    const packageBookingsTotal = packageBookings.reduce((sum, b) => sum + (parseFloat(b.total_amount || 0) || 0), 0);
+                    const totalSpent = ordersTotal + packageBookingsTotal;
                     document.getElementById('totalSpent').textContent = totalSpent.toFixed(2);
                 } catch (e) {
                     // ignore poll errors
@@ -319,6 +441,8 @@ async function loadDashboardData() {
     } catch (error) {
         console.error('Failed to load appointments:', error);
         appointmentsList.innerHTML = '<div class="text-danger">Failed to load appointments</div>';
+        if (homeServiceList) homeServiceList.innerHTML = '<div class="text-danger">Failed to load home service bookings</div>';
+        if (packageBookingsList) packageBookingsList.innerHTML = '<div class="text-danger">Failed to load package bookings</div>';
     }
 }
 </script>

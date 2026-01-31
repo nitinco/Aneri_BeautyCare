@@ -58,6 +58,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     renderCart();
 
+    let pendingRazorpayOrder = null;
+    let pendingOrderTotal = null;
+    let razorpayInstance = null;
+
     document.getElementById('checkoutBtn').addEventListener('click', async function() {
         const cart = window.CartManager.getCart();
         if (!cart || cart.length === 0) return;
@@ -70,34 +74,58 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // If cart changed, clear pending Razorpay order
+        if (window.CartManager.cartChangedSinceOrder) {
+            pendingRazorpayOrder = null;
+            pendingOrderTotal = null;
+            razorpayInstance = null;
+            window.CartManager.cartChangedSinceOrder = false;
+        }
+
         try {
-            LoadingOverlay.show('Processing order...');
-            const order = await window.apiClient.syncCartAndCreateOrder(cart);
-            // create razorpay order on server
-            const rpResp = await window.apiClient.createRazorpayOrder(order.id);
+            LoadingOverlay.show('Processing payment...');
+            if (!pendingRazorpayOrder) {
+                // create razorpay order on server (pass cart total)
+                // You may need to implement an endpoint to create a Razorpay order directly from cart total
+                // For now, reuse your existing API but do NOT create your backend order here
+                const cartTotal = window.CartManager.getTotal();
+                const tax = parseFloat((cartTotal * 0.05).toFixed(2));
+                const grandTotal = cartTotal + tax;
+                // Call your backend to create a Razorpay order for grandTotal
+                // Ensure the API client uses the correct endpoint: /payments/razorpay/create_order_from_amount
+                try {
+                    pendingRazorpayOrder = await window.apiClient.createRazorpayOrderFromAmount(grandTotal);
+                } catch (err) {
+                    LoadingOverlay.hide();
+                    Toast.error(err.message || 'Failed to create payment order. Please try again or contact support.');
+                    return;
+                }
+                pendingOrderTotal = grandTotal;
+            }
             LoadingOverlay.hide();
-            if (!rpResp || !rpResp.razorpay_order) {
-                Toast.success('Order placed successfully');
-                window.CartManager.clearCart();
-                window.location.href = window.APP_CONFIG.URLS.customerDashboard;
+            if (!pendingRazorpayOrder || !pendingRazorpayOrder.razorpay_order) {
+                Toast.error('Failed to create payment order');
+                pendingRazorpayOrder = null;
+                pendingOrderTotal = null;
+                razorpayInstance = null;
                 return;
             }
 
             // load razorpay checkout
-            // compute amount in paise from server-provided order_total to avoid precision issues
-            const orderTotal = (rpResp.order_total !== undefined) ? parseFloat(rpResp.order_total) : null;
-            const amountPaise = orderTotal !== null ? Math.round(orderTotal * 100) : (rpResp.razorpay_order.amount || 0);
-
+            const amountPaise = Math.round(pendingOrderTotal * 100);
             const options = {
-                key: rpResp.key_id,
+                key: pendingRazorpayOrder.key_id,
                 amount: amountPaise,
-                currency: (rpResp.razorpay_order && rpResp.razorpay_order.currency) || 'INR',
+                currency: (pendingRazorpayOrder.razorpay_order && pendingRazorpayOrder.razorpay_order.currency) || 'INR',
                 name: 'Aneri BeautyCare',
-                description: 'Order #' + order.id,
-                order_id: rpResp.razorpay_order.id,
+                description: 'Cart Payment',
+                order_id: pendingRazorpayOrder.razorpay_order.id,
                 handler: async function (response){
                     try {
-                        LoadingOverlay.show('Verifying payment...');
+                        LoadingOverlay.show('Placing order...');
+                        // Now create backend order only after payment
+                        const cart = window.CartManager.getCart();
+                        const order = await window.apiClient.syncCartAndCreateOrder(cart);
                         await window.apiClient.verifyRazorpayPayment({
                             order_id: order.id,
                             razorpay_order_id: response.razorpay_order_id,
@@ -107,6 +135,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         LoadingOverlay.hide();
                         Toast.success('Payment successful');
                         window.CartManager.clearCart();
+                        pendingRazorpayOrder = null;
+                        pendingOrderTotal = null;
+                        razorpayInstance = null;
                         window.location.href = window.APP_CONFIG.URLS.customerDashboard;
                     } catch (err) {
                         LoadingOverlay.hide();
@@ -114,11 +145,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         Toast.error('Payment verification failed');
                     }
                 },
-                modal: {ondismiss: function(){ /* optional: allow user to retry */ }}
+                modal: {
+                    ondismiss: function(){
+                        // Do not clear pending Razorpay order so user can retry without creating new order
+                    }
+                }
             };
 
-            const r = new Razorpay(options);
-            r.open();
+            razorpayInstance = new Razorpay(options);
+            razorpayInstance.open();
 
         } catch (err) {
             LoadingOverlay.hide();
@@ -126,6 +161,23 @@ document.addEventListener('DOMContentLoaded', function() {
             Toast.error(err.message || 'Failed to place order');
         }
     });
+
+    // Listen for cart changes to clear pending Razorpay order
+    window.CartManager._origUpdateQuantity = window.CartManager.updateQuantity;
+    window.CartManager.updateQuantity = function(id, qty) {
+        window.CartManager.cartChangedSinceOrder = true;
+        return window.CartManager._origUpdateQuantity(id, qty);
+    };
+    window.CartManager._origRemoveItem = window.CartManager.removeItem;
+    window.CartManager.removeItem = function(id) {
+        window.CartManager.cartChangedSinceOrder = true;
+        return window.CartManager._origRemoveItem(id);
+    };
+    window.CartManager._origClearCart = window.CartManager.clearCart;
+    window.CartManager.clearCart = function() {
+        window.CartManager.cartChangedSinceOrder = true;
+        return window.CartManager._origClearCart();
+    };
 });
 
 function renderCart() {
@@ -152,14 +204,25 @@ function renderCart() {
     }
 
     const rows = cart.map(item => {
+        const hasOffer = item.applied_offer;
+        const displayPrice = hasOffer ? item.price : item.original_price || item.price;
+        
         return `
         <div class="d-flex align-items-center border rounded p-2 mb-2">
             <div class="me-3" style="width:64px; height:64px;">
-                <img src="${item.image || '/static/images/placeholder.png'}" class="img-fluid rounded" />
+                <img src="${item.image ? '/static/' + item.image : '/static/images/placeholder.svg'}" class="img-fluid rounded" />
             </div>
             <div class="flex-grow-1">
                 <div class="fw-bold">${item.name}</div>
-                <div class="text-muted small">₹${parseFloat(item.price).toFixed(2)}</div>
+                <div class="text-muted small">
+                    ${hasOffer ? `
+                        <span class="text-success">₹${parseFloat(displayPrice).toFixed(2)}</span>
+                        <span class="text-decoration-line-through ms-1">₹${parseFloat(item.original_price || item.price).toFixed(2)}</span>
+                        <br><small class="text-success">${item.applied_offer.title}</small>
+                    ` : `
+                        ₹${parseFloat(displayPrice).toFixed(2)}
+                    `}
+                </div>
             </div>
             <div class="ms-3 text-center">
                 <input type="number" min="1" value="${item.quantity}" data-id="${item.id}" class="form-control form-control-sm cart-qty" style="width:80px;" />

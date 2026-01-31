@@ -156,7 +156,8 @@ class CartManager {
     
     static addItem(product, quantity = 1) {
         const cart = this.getCart();
-        const existingItem = cart.find(item => item.id === product.id);
+        const existingItem = cart.find(item => item.id === product.id && 
+            (!item.applied_offer || !product.applied_offer || item.applied_offer.id === product.applied_offer.id));
         
         if (existingItem) {
             existingItem.quantity += quantity;
@@ -165,8 +166,10 @@ class CartManager {
                 id: product.id,
                 name: product.name,
                 price: product.price,
+                original_price: product.original_price || product.price,
                 quantity: quantity,
-                image: product.image || null
+                image: product.image || null,
+                applied_offer: product.applied_offer || null
             });
         }
         

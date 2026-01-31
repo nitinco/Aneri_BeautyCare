@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Service Packages - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section class="page-header bg-gradient-primary text-white py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12 text-center">
+                <h1 class="display-4 fw-bold">Service Packages</h1>
+                <p class="lead">Choose from our curated service packages for the best value</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Packages Section -->
+<section class="packages-section py-5">
+    <div class="container py-5">
+        <!-- Filter and Search -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchPackages" placeholder="Search packages...">
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <select class="form-select" id="sortPackages">
+                    <option value="name">Sort by Name</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Packages Grid -->
+        <div class="row g-4" id="packagesGrid">
+            <!-- Loading Spinner -->
+            <div class="col-12 text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading packages...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allPackages = [];
+let allServices = [];
+
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadPackages();
+    setupEventListeners();
+});
+
+async function loadPackages() {
+    const grid = document.getElementById('packagesGrid');
+
+    try {
+        const response = await fetch('/api/packages');
+        const packages = await response.json();
+        const packagesArray = Array.isArray(packages) ? packages : (packages.packages || []);
+
+        if (response.ok && packagesArray.length) {
+            allPackages = packagesArray;
+            displayPackages(allPackages);
+        } else {
+            grid.innerHTML = `
+                <div class="col-12 text-center">
+                    <p class="text-muted">No packages available at the moment.</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading packages:', error);
+        grid.innerHTML = `
+            <div class="col-12 text-center">
+                <p class="text-danger">Failed to load packages. Please try again later.</p>
+            </div>
+        `;
+    }
+}
+
+function displayPackages(packages) {
+    const grid = document.getElementById('packagesGrid');
+
+    if (packages.length === 0) {
+        grid.innerHTML = `
+            <div class="col-12 text-center">
+                <p class="text-muted">No packages found.</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = packages.map(package => {
+        const servicesCount = package.details ? package.details.length : 0;
+        const totalSittings = package.details ? package.details.reduce((sum, detail) => sum + (detail.no_of_sitting || 1), 0) : 0;
+
+        return `
+        <div class="col-lg-4 col-md-6">
+            <div class="card package-card border-0 shadow-sm h-100 ${package.is_active ? '' : 'opacity-50'}">
+                <div class="card-header bg-primary text-white text-center py-3">
+                    <h5 class="card-title mb-0">${package.name}</h5>
+                    ${!package.is_active ? '<small class="text-warning">Currently Unavailable</small>' : ''}
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <h3 class="text-primary fw-bold">₹${parseFloat(package.price).toFixed(2)}</h3>
+                        <small class="text-muted">Complete Package</small>
+                    </div>
+
+                    <p class="card-text text-muted mb-3">${package.description || 'Comprehensive beauty package with multiple services'}</p>
+
+                    <div class="package-details mb-3">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <strong class="text-primary">${servicesCount}</strong><br>
+                                <small>Services</small>
+                            </div>
+                            <div class="col-6">
+                                <strong class="text-primary">${totalSittings}</strong><br>
+                                <small>Total Sittings</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${package.details && package.details.length > 0 ? `
+                        <div class="services-list mb-3">
+                            <small class="text-muted fw-bold">Includes:</small>
+                            <ul class="list-unstyled small">
+                                ${package.details.slice(0, 3).map(detail => {
+                                    const service = allServices.find(s => s.id === detail.service_id);
+                                    return `<li><i class="bi bi-check-circle text-success me-1"></i>${service ? service.name : 'Service'} (${detail.no_of_sitting || 1} sitting${(detail.no_of_sitting || 1) > 1 ? 's' : ''})</li>`;
+                                }).join('')}
+                                ${package.details.length > 3 ? `<li class="text-muted">+${package.details.length - 3} more services</li>` : ''}
+                            </ul>
+                        </div>
+                    ` : ''}
+
+                    <div class="package-benefits mb-3">
+                        <small class="text-success fw-bold">Benefits:</small>
+                        <ul class="list-unstyled small text-success">
+                            <li><i class="bi bi-star me-1"></i>Cost-effective bundle</li>
+                            <li><i class="bi bi-star me-1"></i>Multiple service sittings</li>
+                            <li><i class="bi bi-star me-1"></i>Professional care</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 p-3">
+                    ${package.is_active ? `
+                        <button class="btn btn-primary w-100 book-package-btn" data-package-id="${package.id}" data-package-name="${package.name}">
+                            <i class="bi bi-calendar-check"></i> Book Package
+                        </button>
+                    ` : `
+                        <button class="btn btn-secondary w-100" disabled>
+                            <i class="bi bi-clock"></i> Coming Soon
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `}).join('');
+
+    // Add event listeners to book buttons
+    document.querySelectorAll('.book-package-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const packageId = this.dataset.packageId;
+            const packageName = this.dataset.packageName;
+            bookPackage(packageId, packageName);
+        });
+    });
+}
+
+function setupEventListeners() {
+    // Search functionality
+    document.getElementById('searchPackages').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const filteredPackages = allPackages.filter(pkg =>
+            pkg.name.toLowerCase().includes(searchTerm) ||
+            (pkg.description && pkg.description.toLowerCase().includes(searchTerm))
+        );
+        displayPackages(filteredPackages);
+    });
+
+    // Sort functionality
+    document.getElementById('sortPackages').addEventListener('change', function() {
+        const sortBy = this.value;
+        let sortedPackages = [...allPackages];
+
+        switch(sortBy) {
+            case 'price-low':
+                sortedPackages.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                break;
+            case 'price-high':
+                sortedPackages.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+                break;
+            case 'name':
+            default:
+                sortedPackages.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+        }
+
+        displayPackages(sortedPackages);
+    });
+}
+
+function bookPackage(packageId, packageName) {
+    // Check if user is logged in
+    const token = localStorage.getItem(window.APP_CONFIG.TOKEN_KEY);
+
+    if (!token) {
+        // Redirect to login
+        if (confirm(`Please login to book ${packageName}. Redirect to login page?`)) {
+            window.location.href = window.APP_CONFIG.URLS.login;
+        }
+    } else {
+        // Redirect to package booking page
+        window.location.href = `${window.APP_CONFIG.URLS.bookPackage}?package=${packageId}`;
+    }
+}
+
+// Load services for package details
+async function loadServices() {
+    try {
+        const response = await fetch('/api/services');
+        const data = await response.json();
+        allServices = Array.isArray(data) ? data : (data.services || []);
+    } catch (error) {
+        console.error('Error loading services:', error);
+    }
+}
+
+// Load services on page load
+loadServices();
+</script>
+{% endblock %}</content>
+<parameter name="filePath">/home/nitin/Desktop/Ankit kota/Aneri_BeautyCare_Backend/templates/packages.html

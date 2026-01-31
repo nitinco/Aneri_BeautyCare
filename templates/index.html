@@ -113,6 +113,30 @@
     </div>
 </section>
 
+<!-- Products Preview -->
+<section class="products-preview py-5">
+    <div class="container py-5">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold">Our Products</h2>
+            <p class="lead text-muted">Premium beauty and skincare products</p>
+        </div>
+        
+        <div class="row g-4" id="productsContainer">
+            <div class="col-12 text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-5">
+            <a href="{{ url_for('main.customer_products') }}" class="btn btn-primary btn-lg">
+                View All Products <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+</section>
+
 <!-- CTA Section -->
 <section class="cta-section py-5 bg-primary text-white">
     <div class="container py-5 text-center">
@@ -129,6 +153,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', async function() {
     await loadServices();
+    await loadProducts();
 });
 
 async function loadServices() {
@@ -146,10 +171,8 @@ async function loadServices() {
             container.innerHTML = services.map(service => `
                 <div class="col-lg-3 col-md-6">
                     <div class="card border-0 shadow-sm h-100">
+                        ${service.image ? `<img src="/static/${service.image}" class="card-img-top" alt="${service.name}" style="height: 250px; object-fit: contain;">` : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 150px;"><i class="bi bi-scissors text-muted" style="font-size: 2.5rem;"></i></div>`}
                         <div class="card-body text-center">
-                            <div class="service-icon mb-3">
-                                <i class="bi bi-scissors text-primary" style="font-size: 2.5rem;"></i>
-                            </div>
                             <h5 class="card-title">${service.name}</h5>
                             <p class="card-text text-muted">${service.description || 'Professional service'}</p>
                             <p class="fw-bold text-primary">₹${service.price}</p>
@@ -172,6 +195,48 @@ async function loadServices() {
         container.innerHTML = `
             <div class="col-12 text-center">
                 <p class="text-danger">Failed to load services. Please try again later.</p>
+            </div>
+        `;
+    }
+}
+
+async function loadProducts() {
+    const container = document.getElementById('productsContainer');
+    
+    try {
+        const response = await fetch('/products');
+        const data = await response.json();
+        
+        const productsArray = Array.isArray(data) ? data : (data.products || []);
+        if (response.ok && productsArray.length > 0) {
+            // Show only first 4 products that are active
+            const products = productsArray.filter(p => p.is_active !== false).slice(0, 4);
+            
+            container.innerHTML = products.map(product => `
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        ${product.image ? `<img src="/static/${product.image}" class="card-img-top" alt="${product.name}" style="height: 150px; object-fit: contain;">` : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 150px;"><i class="bi bi-box-seam text-muted" style="font-size: 2.5rem;"></i></div>`}
+                        <div class="card-body text-center">
+                            <h5 class="card-title">${product.name}</h5>
+                            <p class="card-text text-muted">${product.brand_name || (product.brand_id ? 'Brand #' + product.brand_id : 'Premium')}</p>
+                            <p class="fw-bold text-primary">₹${product.price}</p>
+                            <p class="text-muted small">SKU: ${product.sku || '-'}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = `
+                <div class="col-12 text-center">
+                    <p class="text-muted">No products available at the moment.</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading products:', error);
+        container.innerHTML = `
+            <div class="col-12 text-center">
+                <p class="text-danger">Failed to load products. Please try again later.</p>
             </div>
         `;
     }

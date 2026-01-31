@@ -11,3 +11,8 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
     RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
+    
+    # Upload settings
+    UPLOAD_FOLDER = os.path.join(os.getcwd(), 'static', 'uploads')
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}

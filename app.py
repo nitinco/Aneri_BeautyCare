@@ -32,6 +32,7 @@ def create_app():
     from routes.staff_routes import staff_bp
     from routes.complaint_routes import cmp_bp
     from routes.payment_routes import pay_bp
+    from routes.package_booking_routes import package_booking_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(svc_bp, url_prefix="/api")
@@ -46,6 +47,7 @@ def create_app():
     app.register_blueprint(staff_bp, url_prefix="/api")
     app.register_blueprint(cmp_bp)
     app.register_blueprint(pay_bp, url_prefix='/payments')
+    app.register_blueprint(package_booking_bp, url_prefix='/api/package')
     with app.app_context():
         db.create_all()
 
@@ -54,4 +56,4 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)

@@ -25,13 +25,27 @@ class Offer(db.Model):
         return True
 
     def to_dict(self):
+        from models import Product, Service  # Import here to avoid circular imports
+        product_name = None
+        service_name = None
+        
+        if self.product_id:
+            product = Product.query.get(self.product_id)
+            product_name = product.name if product else None
+            
+        if self.service_id:
+            service = Service.query.get(self.service_id)
+            service_name = service.name if service else None
+            
         return {
             'id': self.id,
             'title': self.title,
             'description': self.description,
             'is_product_offer': self.is_product_offer,
             'product_id': self.product_id,
+            'product_name': product_name,
             'service_id': self.service_id,
+            'service_name': service_name,
             'discount_percent': self.discount_percent,
             'start_date': self.start_date.isoformat() if self.start_date else None,
             'end_date': self.end_date.isoformat() if self.end_date else None,

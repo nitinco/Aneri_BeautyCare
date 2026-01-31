@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Package Bookings - Admin - Aneri Beauty Care{% endblock %}
+
+{% block content %}
+<div class="admin-package-bookings py-5 bg-light">
+    <div class="container-fluid">
+        <h2 class="mb-4"><i class="bi bi-collection"></i> Package Bookings</h2>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Customer</th>
+                                <th>Package</th>
+                                <th>Booking Date</th>
+                                <th>Service Type</th>
+                                <th>Status</th>
+                                <th>Total Amount</th>
+                                <th>Payment Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packageBookingsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Package Booking Details Modal -->
+<div class="modal fade" id="packageBookingModal" tabindex="-1" aria-labelledby="packageBookingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="packageBookingModalLabel">Package Booking Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="packageBookingDetails">
+                <!-- Details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    if (!window.apiClient) return;
+    await loadPackageBookingsPage();
+});
+
+async function loadPackageBookingsPage() {
+    try {
+        LoadingOverlay.show('Loading package bookings...');
+        const response = await window.apiClient.get('/api/package/admin/bookings');
+        const bookings = Array.isArray(response) ? response : (response.bookings || []);
+
+        const tbody = document.getElementById('packageBookingsTableBody');
+        tbody.innerHTML = '';
+
+        if (bookings.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">
+                        <i class="bi bi-collection" style="font-size: 2rem;"></i>
+                        <p class="mt-2 mb-0">No package bookings found</p>
+                    </td>
+                </tr>
+            `;
+            LoadingOverlay.hide();
+            return;
+        }
+
+        bookings.forEach(booking => {
+            const bookingDate = booking.start_datetime ? new Date(booking.start_datetime).toLocaleDateString() : 'N/A';
+            const paymentStatus = booking.razorpay_payment_id ? 'Paid' : 'Pending';
+            const statusBadge = booking.status === 'confirmed' ? 'bg-success' :
+                              booking.status === 'cancelled' ? 'bg-danger' :
+                              booking.status === 'completed' ? 'bg-info' : 'bg-warning text-dark';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${booking.id}</td>
+                <td>${booking.customer_name || 'N/A'}</td>
+                <td>${booking.package_name || 'N/A'}</td>
+                <td>${bookingDate}</td>
+                <td><span class="badge bg-secondary">${booking.service_type || 'N/A'}</span></td>
+                <td><span class="badge ${statusBadge}">${booking.status || 'N/A'}</span></td>
+                <td>₹${parseFloat(booking.total_amount || 0).toFixed(2)}</td>
+                <td><span class="badge ${paymentStatus === 'Paid' ? 'bg-success' : 'bg-warning'}">${paymentStatus}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-primary me-2" onclick="viewPackageBookingDetails(${booking.id})">
+                        <i class="bi bi-eye"></i> View
+                    </button>
+                    ${booking.status === 'pending' ? `
+                        <button class="btn btn-sm btn-success me-2" onclick="confirmPackageBooking(${booking.id})">
+                            <i class="bi bi-check"></i> Confirm
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="cancelPackageBooking(${booking.id})">
+                            <i class="bi bi-x"></i> Cancel
+                        </button>
+                    ` : ''}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        LoadingOverlay.hide();
+    } catch (error) {
+        console.error('Error loading package bookings:', error);
+        LoadingOverlay.hide();
+        const tbody = document.getElementById('packageBookingsTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center text-danger py-4">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
+                    <p class="mt-2 mb-0">Failed to load package bookings</p>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+async function viewPackageBookingDetails(bookingId) {
+    try {
+        const response = await window.apiClient.get(`/api/package/admin/bookings/${bookingId}`);
+        const booking = response;
+
+        const modal = new bootstrap.Modal(document.getElementById('packageBookingModal'));
+        const detailsDiv = document.getElementById('packageBookingDetails');
+
+        const bookingDate = booking.start_datetime ? new Date(booking.start_datetime).toLocaleString() : 'N/A';
+        const endDate = booking.end_datetime ? new Date(booking.end_datetime).toLocaleString() : 'N/A';
+
+        detailsDiv.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Booking Information</h6>
+                    <p><strong>ID:</strong> ${booking.id}</p>
+                    <p><strong>Customer:</strong> ${booking.customer_name || 'N/A'}</p>
+                    <p><strong>Package:</strong> ${booking.package_name || 'N/A'}</p>
+                    <p><strong>Status:</strong> <span class="badge ${booking.status === 'confirmed' ? 'bg-success' : booking.status === 'cancelled' ? 'bg-danger' : 'bg-warning'}">${booking.status}</span></p>
+                    <p><strong>Service Type:</strong> ${booking.service_type || 'N/A'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Schedule & Payment</h6>
+                    <p><strong>Start Date/Time:</strong> ${bookingDate}</p>
+                    <p><strong>End Date/Time:</strong> ${endDate}</p>
+                    <p><strong>Total Amount:</strong> ₹${parseFloat(booking.total_amount || 0).toFixed(2)}</p>
+                    <p><strong>Payment Status:</strong> <span class="badge ${booking.razorpay_payment_id ? 'bg-success' : 'bg-warning'}">${booking.razorpay_payment_id ? 'Paid' : 'Pending'}</span></p>
+                    ${booking.razorpay_order_id ? `<p><strong>Razorpay Order ID:</strong> ${booking.razorpay_order_id}</p>` : ''}
+                    ${booking.razorpay_payment_id ? `<p><strong>Razorpay Payment ID:</strong> ${booking.razorpay_payment_id}</p>` : ''}
+                </div>
+            </div>
+            ${booking.address ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Address Information</h6>
+                        <p><strong>Address:</strong> ${booking.address}</p>
+                        ${booking.pincode ? `<p><strong>Pincode:</strong> ${booking.pincode}</p>` : ''}
+                    </div>
+                </div>
+            ` : ''}
+            ${booking.notes ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Special Notes</h6>
+                        <p>${booking.notes}</p>
+                    </div>
+                </div>
+            ` : ''}
+        `;
+
+        modal.show();
+    } catch (error) {
+        console.error('Error loading booking details:', error);
+        alert('Failed to load booking details');
+    }
+}
+
+async function confirmPackageBooking(bookingId) {
+    if (!confirm('Are you sure you want to confirm this package booking?')) return;
+
+    try {
+        await window.apiClient.put(`/api/package/admin/bookings/${bookingId}`, { status: 'confirmed' });
+        alert('Package booking confirmed successfully');
+        await loadPackageBookingsPage();
+    } catch (error) {
+        console.error('Error confirming booking:', error);
+        alert('Failed to confirm booking');
+    }
+}
+
+async function cancelPackageBooking(bookingId) {
+    if (!confirm('Are you sure you want to cancel this package booking?')) return;
+
+    try {
+        await window.apiClient.put(`/api/package/admin/bookings/${bookingId}`, { status: 'cancelled' });
+        alert('Package booking cancelled successfully');
+        await loadPackageBookingsPage();
+    } catch (error) {
+        console.error('Error cancelling booking:', error);
+        alert('Failed to cancel booking');
+    }
+}
+</script>
+{% endblock %}
